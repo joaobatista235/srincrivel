@@ -1,7 +1,6 @@
 const Discord = require("discord.js");
 const { DisTube } = require('distube');
 const fs = require("fs");
-const simsimi = require('simsimi')({ key: 'RAvyfKq~VqQCUZ_vDLSvmmJppiZ6koBqg2jJztpz' });
 
 const client = new Discord.Client({ intents: [1, 512, 32768, 2, 128, "GuildVoiceStates"] });
 
@@ -46,9 +45,6 @@ client.on("messageCreate", async (message) => {
         for (let i = 0; i < reacoes.length; i++) {
             message.react(reacoes[i]);
         }
-        simsimi(message.content).then(response => {
-            message.reply(response);
-        }, e => console.error('simsimi error:', e));
     }
 
     let prefix = config.prefix;
@@ -110,7 +106,7 @@ client.on("ready", () => {
 
     });
 
-    client.users.fetch(usuarios.gui, false).then((user) => {
+    client.users.fetch(usuarios.digao, false).then((user) => {
         user.send('Eu sei aonde vc mora');
     });
 
