@@ -14,6 +14,7 @@ const autoplayButton = createButton('autoplay', '❌ Autoplay')
 const nextButton = createButton('skip', '⏭️ Próxima')
 const previousButton = createButton('previous', '⏮️ Anterior')
 const pauseButton = createButton('pause', '⏸️ Pausar')
+const stopButton = createButton('stop', '⏹️ Parar')
 const volumeUp = createButton('volumeUp', '🔊 Aumentar')
 const volumeDown = createButton('volumeDown', '🔈 Diminuir')
 
@@ -22,6 +23,7 @@ module.exports = {
     next: nextButton,
     previous: previousButton,
     pause: pauseButton,
+    stop: stopButton,
     volumeUp: volumeUp,
     volumeDown: volumeDown
 }
