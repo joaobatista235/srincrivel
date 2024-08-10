@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 const buttons = require("./buttons/buttons");
 
 const btnComponent = [
-    { type: 1, components: [buttons.previous, buttons.pause, buttons.next] },
+    { type: 1, components: [buttons.previous, buttons.pause, buttons.stop, buttons.next] },
     { type: 1, components: [buttons.autoplay] }
 ]
 
