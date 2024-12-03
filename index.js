@@ -1,72 +1,67 @@
-const Discord = require("discord.js");
-const { DisTube } = require('distube');
-const fs = require("fs");
+import Discord from "discord.js";
+import { DisTube, Events } from 'distube';
+import fs from "fs";
+import listeners from './config/listeners.js';
+import config from "./config/config.json" assert { type: "json" };
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus } from '@discordjs/voice';
+import 'dotenv/config';
 
 const client = new Discord.Client({ intents: [1, 512, 32768, 2, 128, "GuildVoiceStates"] });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-require('dotenv').config();
-// Import de arquivos necessarios
-let cnl = null;
-const listeners = require('./config/listeners.js');
-const config = require("./config/config.json");
-const usuarios = require("./config/usuarios.json");
+const usuarios = JSON.parse(fs.readFileSync('./config/usuarios.json'));
 
 client.distube = new DisTube(client, {
-    leaveOnStop: false,
     emitNewSongOnly: true,
     emitAddSongWhenCreatingQueue: false,
     emitAddListWhenCreatingQueue: false,
-})
+});
 
 client.login(process.env.TOKEN);
 client.commands = new Discord.Collection();
 client.aliases = new Discord.Collection();
 client.categories = fs.readdirSync(`./commands/`);
 
-fs.readdirSync('./commands/').forEach(local => {
-    const comandos = fs.readdirSync(`./commands/`).filter(arquivo => arquivo.endsWith('.js'));
+const loadCommands = async () => {
+    const commandFiles = fs.readdirSync('./commands/').filter(file => file.endsWith('.js'));
 
-    for (let file of comandos) {
-        let puxar = require(`./commands/${file}`);
-
-        if (puxar.name) {
-            client.commands.set(puxar.name, puxar);
+    for (const file of commandFiles) {
+        const { default: command } = await import(`./commands/${file}`);
+        if (command.name) {
+            client.commands.set(command.name, command);
         }
-        if (puxar.aliases && Array.isArray(puxar.aliases))
-            puxar.aliases.forEach(x => client.aliases.set(x, puxar.name));
+        if (command.aliases && Array.isArray(command.aliases)) {
+            command.aliases.forEach(alias => client.aliases.set(alias, command.name));
+        }
     }
-});
+};
 
-// Event Listener para mensagens
+loadCommands();
+
 client.on("messageCreate", async (message) => {
-    // Ignorar mensagens de DMs, bots e mensagens muito curtas
     if (message.channel.type === Discord.ChannelType.DM ||
         message.author.bot ||
         message.content.length <= config.prefix.length) return;
 
-    // Verificar se a mensagem começa com o prefixo
     if (!message.content.toLowerCase().startsWith(config.prefix.toLowerCase())) return;
 
-    // Remover o prefixo, separar os argumentos e obter o comando
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
     const cmd = args.shift().toLowerCase();
 
-    // Obter o comando a partir do nome ou alias
-    let command = client.commands.get(cmd) || client.aliases.get(cmd);
+    let command = client.commands.get(cmd) || client.commands.get(client.aliases.get(cmd));
     if (!command) return;
 
     try {
-        // Executar o comando
         await command.run(client, message, args);
-        cnl = message; // Armazenar o canal da mensagem (considerar alternativas)
     } catch (err) {
         console.error('Erro ao executar o comando:', err);
-        // Enviar mensagem de erro para o usuário
         message.reply('Ocorreu um erro ao executar esse comando.');
     }
 });
 
-// Event Listener para interações
 client.on(Discord.Events.InteractionCreate, async interaction => {
     listeners.acoes(interaction.customId);
 
@@ -74,48 +69,68 @@ client.on(Discord.Events.InteractionCreate, async interaction => {
     if (!command) return;
 
     try {
-        await command.run(client, cnl); // Executar o comando
+        await command.run(client, interaction);
         await interaction.update({ components: listeners.btnComponent });
     } catch (err) {
         console.error('Erro ao executar o comando:', err);
-        // Enviar mensagem de erro para o usuário
         interaction.reply('Ocorreu um erro ao executar esse comando.');
     }
 });
 
-// Event Listeners para o DisTube
 client.distube
-    .on('playSong', (queue, song) => listeners.onPlaySong(client.user.username, cnl.author.iconURL, song.name, song.thumbnail, song.formattedDuration, cnl.channel))
-    .on('addSong', (queue, song) => listeners.onAddSong(song.name, cnl.channel))
-    .on('error', (channel, e) => {
-        console.error('Erro no DisTube:', e);
-        channel.send(`Ocorreu um erro: ${e.message}`);
-    })
+    .on('playSong', (queue, song) => 
+        listeners.onPlaySong(client.user.username, null, song.name, song.thumbnail, song.formattedDuration, queue.textChannel))
+    .on('addSong', (queue, song) => listeners.onAddSong(song.name, queue.textChannel))
+    .on(Events.ERROR, (queue, err) => console.log(err))
     .on('finish', queue => queue.textChannel?.send('Fim da fila!'))
     .on('finishSong', queue => queue.textChannel?.send('Fim da música!'))
-    .on('disconnect', queue => queue.textChannel?.send('Disconectado!'))
+    .on('disconnect', queue => queue.textChannel?.send('Desconectado!'))
     .on('empty', queue => queue.textChannel?.send('O canal de voz está vazio! Saindo do canal...'));
 
+client.on('voiceStateUpdate', (oldState, newState) => {
+    if (!oldState.channelId && newState.channelId) {
+        const userId = newState.id;
+        const userAudio = usuarios[userId];
+
+        if (!userAudio) {
+            console.log(`Usuário ${userId} não possui áudio configurado.`);
+            return;
+        }
+
+        const audioPath = path.join(__dirname, userAudio.audio);
+        const voiceChannel = newState.channel;
+
+        if (!voiceChannel) return;
+
+        try {
+            const connection = joinVoiceChannel({
+                channelId: voiceChannel.id,
+                guildId: voiceChannel.guild.id,
+                adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+            });
+
+            const player = createAudioPlayer();
+            const resource = createAudioResource(audioPath);
+
+            connection.subscribe(player);
+
+            player.play(resource);
+
+            player.on(AudioPlayerStatus.Playing, () => {
+                console.log(`Tocando áudio para o usuário ${userId}!`);
+            });
+
+            player.on(AudioPlayerStatus.Idle, () => {
+                console.log(`Áudio para o usuário ${userId} finalizado. Desconectando...`);
+                connection.destroy();
+            });
+        } catch (error) {
+            console.error(`Erro ao tentar reproduzir o áudio para o usuário ${userId}:`, error);
+        }
+    }
+});
+    
+
 client.on("ready", () => {
-
     console.log('SrIncrivel está entre nós.');
-
-    // Listar servidores em que o bot está ativo
-    // client.guilds.cache.forEach((guild) => {
-    //     console.log(`${guild.name} - ${guild.id}`);
-    // });
-
-    // Remover o bot de algum servidor pelo id
-    // if (guild.id == 'idServidor') {
-    //     guild.leave()
-    //       .then(() => console.log(`Bot removido do servidor: ${guild.name}`))
-    //       .catch(console.error);
-    //   }
-
-    client.users.fetch(usuarios.digao, false).then((user) => {
-        user.send('Eu sei aonde vc mora');
-    });
-
-    client.login(process.env.TOKEN);
-
-})
+});

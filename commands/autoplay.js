@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   name: 'autoplay',
   inVoiceChannel: true,
   run: async (client, message) => {

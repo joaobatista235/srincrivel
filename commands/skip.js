@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   name: 'skip',
   inVoiceChannel: true,
   run: async (client, message) => {

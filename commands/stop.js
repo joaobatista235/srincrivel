@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   name: 'stop',
   aliases: ['disconnect', 'leave'],
   inVoiceChannel: true,

@@ -1,6 +1,6 @@
-const { Constants } = require('discord.js')
+import { Constants } from 'discord.js';
 
-module.exports = {
+export default {
   name: 'entrar',
   aliases: ['move'],
   run: async (client, message, args) => {

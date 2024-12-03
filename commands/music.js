@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     name: "tocar", // Coloque o nome do seu comando
     aliases: [""], // Coloque sinônimos do nome do comando
 

@@ -1,4 +1,4 @@
-const { ButtonBuilder, ButtonStyle } = require('discord.js')
+import { ButtonBuilder, ButtonStyle } from 'discord.js';
 
 function createButton(id, label) {
 
@@ -18,7 +18,7 @@ const stopButton = createButton('stop', '⏹️ Parar')
 const volumeUp = createButton('volumeUp', '🔊 Aumentar')
 const volumeDown = createButton('volumeDown', '🔈 Diminuir')
 
-module.exports = {
+export default {
     autoplay: autoplayButton,
     next: nextButton,
     previous: previousButton,

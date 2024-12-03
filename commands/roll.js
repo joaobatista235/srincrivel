@@ -1,6 +1,6 @@
-const Discord = require("discord.js");
+import Discord from "discord.js";
 
-module.exports = {
+export default {
     name: "roll", // Coloque o nome do seu comando
     aliases: [""], // Coloque sinônimos do nome do comando
 

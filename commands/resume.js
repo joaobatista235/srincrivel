@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   name: 'resume',
   aliases: ['resume', 'unpause'],
   inVoiceChannel: true,
