@@ -1,5 +1,5 @@
-const Discord = require("discord.js");
-const buttons = require("./buttons/buttons");
+import Discord from "discord.js";
+import buttons from "./buttons/buttons.js";
 
 const btnComponent = [
     { type: 1, components: [buttons.previous, buttons.pause, buttons.stop, buttons.next] },
@@ -14,7 +14,7 @@ const voltar = '▶️ Resume';
 const pausar = '⏸️ Pausar';
 let boolPause = false;
 
-module.exports = {
+export default {
     btnComponent: btnComponent,
     onPlaySong: async(username, icon, name, thumb, duracao, canal) => {
     let embed = new Discord.EmbedBuilder()
