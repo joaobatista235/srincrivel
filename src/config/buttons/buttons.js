@@ -1,7 +1,6 @@
 import { ButtonBuilder, ButtonStyle } from 'discord.js';
 
 function createButton(id, label) {
-
     let botao = new ButtonBuilder()
         .setCustomId(id)
         .setLabel(label)
