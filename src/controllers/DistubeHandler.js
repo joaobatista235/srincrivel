@@ -4,7 +4,6 @@ import listeners from '../config/listeners.js';
 class DisTubeHandler {
     constructor(client, playAudioUseCase) {
         this.client = client;
-        this.playAudioUseCase = playAudioUseCase;
     }
 
     init() {

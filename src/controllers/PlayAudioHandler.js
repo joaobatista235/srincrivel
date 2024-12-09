@@ -6,6 +6,7 @@ class PlayAudioUseCase {
         this.client = client;
         this.usuarios = usuarios;
         this.__dirname = __dirname;
+        this.usuarios = usuarios;
         this.currentUser = null;
     }
 
@@ -19,7 +20,7 @@ class PlayAudioUseCase {
                 return;
             }
 
-            const audioPath = path.join(this.__dirname, ('/src/intros/' + userAudio.audio));
+            const audioPath = path.join(this.__dirname, '..', 'intros', userAudio.audio);
             const voiceChannel = newState.channel;
 
             if (this.currentUser && this.currentUser !== userId) {
