@@ -1,10 +1,15 @@
 import Discord from 'discord.js';
+import DisTubeHandler from '../controllers/DistubeHandler.js';
+import { DisTube } from 'distube';
+import { YtDlpPlugin } from '@distube/yt-dlp';
+import { YouTubePlugin } from '@distube/youtube';
+import PlayAudioHandler from '../controllers/PlayAudioHandler.js';
+import usuarios from '../config/usuarios.json' assert { type: 'json' };
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import PlayAudioHandler from '../controllers/PlayAudioHandler.js';
-import usuarios from '../config/usuarios.json' assert { type: 'json' };
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,15 +29,25 @@ class DiscordBot {
 
         this.client.commands = new Discord.Collection();
         this.client.aliases = new Discord.Collection();
-
         this.config = config;
         this.commandHandler = commandHandler;
         this.playAudioHandler = new PlayAudioHandler(this.client, usuarios, __dirname);
+
+        this.client.distube = new DisTube(this.client, {
+            plugins: [
+                new YtDlpPlugin(), 
+                new YouTubePlugin()
+            ],
+            emitNewSongOnly: true
+        });
+
+        this.distubeHandler = new DisTubeHandler(this.client);
     }
 
     async initialize() {
         await this.loadCommands();
         this.setupEventListeners();
+        this.distubeHandler.init();
         await this.client.login(process.env.TOKEN);
     }
 
@@ -79,12 +94,11 @@ class DiscordBot {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
 
-        const command = this.client.commands.get(commandName) ||
-            this.client.commands.get(this.client.aliases.get(commandName));
+        const command = this.client.commands.get(commandName) || this.client.commands.get(this.client.aliases.get(commandName));
 
         if (command) {
             try {
-                command.execute(message, args);
+                command.run(this.client, message, args);
             } catch (error) {
                 console.error(`Erro ao executar o comando ${commandName}:`, error);
                 message.reply('Houve um erro ao executar esse comando.');
