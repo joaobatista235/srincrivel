@@ -1,27 +1,32 @@
+import { SlashCommandBuilder } from '@discordjs/builders';
+
 export default {
-  name: 'pause',
-  aliases: ['pause', 'hold'],
-  inVoiceChannel: true,
-  run: async (client, message) => {
-    const queue = client.distube.getQueue(message)
-    if (!queue) return console.log("Fila vazia");
+  data: new SlashCommandBuilder()
+    .setName('pause')
+    .setDescription('Pausa ou retoma a música em reprodução.'),
+  async execute(interaction, distube) {
+    const voiceChannel = interaction.member?.voice.channel;
 
-    if (queue.paused) {
-      try{
+    if (!voiceChannel) {
+      return interaction.reply({ content: '❌ Você precisa estar em um canal de voz para usar este comando.', ephemeral: true });
+    }
+
+    const queue = distube.getQueue(interaction.guildId);
+    if (!queue) {
+      return interaction.reply({ content: '❌ Não há nenhuma música sendo reproduzida no momento.', ephemeral: true });
+    }
+
+    try {
+      if (queue.paused) {
         await queue.resume();
-        return console.log("Fila despausada");
-      }catch(e){
-        return console.log("Erro" + e);
+        return interaction.reply('▶️ A música foi retomada!');
       }
-    }
 
-    try{
       await queue.pause();
-      return console.log("Fila pausada");
-    }catch(e){
-      return console.log("Erro" + e);
+      return interaction.reply('⏸️ A música foi pausada!');
+    } catch (err) {
+      console.error('Erro ao pausar ou retomar a música:', err);
+      return interaction.reply({ content: `❌ Ocorreu um erro: ${err.message}`, ephemeral: true });
     }
-    
-    
-  }
-}
+  },
+};
