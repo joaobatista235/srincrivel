@@ -2,12 +2,13 @@ import { Events } from 'distube';
 import listeners from '../config/listeners.js';
 
 class DisTubeHandler {
-    constructor(client) {
+    constructor(client, distube) {
         this.client = client;
+        this.distube = distube;
     }
 
     init() {
-        this.client.distube
+        this.distube
             .on('playSong', (queue, song) => this.onPlaySong(queue, song))
             .on('addSong', (queue, song) => this.onAddSong(queue, song))
             .on(Events.ERROR, (queue, err) => this.onError(queue, err))

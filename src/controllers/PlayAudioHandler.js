@@ -21,6 +21,7 @@ class PlayAudioUseCase {
             }
 
             const audioPath = path.join(this.__dirname, '..', 'intros', userAudio.audio);
+            
             const voiceChannel = newState.channel;
 
             if (this.currentUser && this.currentUser !== userId) {

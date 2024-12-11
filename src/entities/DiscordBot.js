@@ -1,114 +1,88 @@
-import Discord from 'discord.js';
-import DisTubeHandler from '../controllers/DistubeHandler.js';
+import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import { DisTube } from 'distube';
 import { YtDlpPlugin } from '@distube/yt-dlp';
 import { YouTubePlugin } from '@distube/youtube';
+import dotenv from 'dotenv';
+import CommandHandler from '../controllers/CommandHandler.js';
+import DistubeHandler from '../controllers/DistubeHandler.js';
 import PlayAudioHandler from '../controllers/PlayAudioHandler.js';
 import usuarios from '../config/usuarios.json' assert { type: 'json' };
-
-import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
-import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config();
+
 class DiscordBot {
-    constructor(config, commandHandler) {
-        this.client = new Discord.Client({
+    constructor() {
+        this.client = new Client({
             intents: [
-                Discord.GatewayIntentBits.Guilds,
-                Discord.GatewayIntentBits.GuildMessages,
-                Discord.GatewayIntentBits.MessageContent,
-                Discord.GatewayIntentBits.GuildVoiceStates,
-                Discord.GatewayIntentBits.GuildMembers
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildVoiceStates,
+                GatewayIntentBits.GuildMembers,
             ],
         });
-
-        this.client.commands = new Discord.Collection();
-        this.client.aliases = new Discord.Collection();
-        this.config = config;
-        this.commandHandler = commandHandler;
+        this.distube = new DisTube(this.client, {
+            plugins: [new YtDlpPlugin(), new YouTubePlugin()],
+            emitNewSongOnly: true,
+        });
+        this.channelContexts = new Map();
+        this.commandHandler = new CommandHandler(this.client, this.distube, this.channelContexts);
+        this.distubeHandler = new DistubeHandler(this.client, this.distube);
         this.playAudioHandler = new PlayAudioHandler(this.client, usuarios, __dirname);
 
-        this.client.distube = new DisTube(this.client, {
-            plugins: [
-                new YtDlpPlugin(), 
-                new YouTubePlugin()
-            ],
-            emitNewSongOnly: true
-        });
-
-        this.distubeHandler = new DisTubeHandler(this.client);
+        this.client.commands = new Collection();
     }
 
     async initialize() {
-        await this.loadCommands();
-        this.setupEventListeners();
+        await this.commandHandler.loadCommands();
+
         this.distubeHandler.init();
+        this.setupEventListeners();
         await this.client.login(process.env.TOKEN);
     }
 
-    async loadCommands() {
-        const commandsPath = path.resolve(__dirname, '..', 'commands');
-        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-        for (const file of commandFiles) {
-            try {
-                const filePath = path.resolve(commandsPath, file);
-                const fileUrl = `file://${filePath}`;
-
-                const { default: command } = await import(fileUrl);
-
-                if (command.name) {
-                    this.client.commands.set(command.name, command);
-                }
-
-                if (command.aliases && Array.isArray(command.aliases)) {
-                    command.aliases.forEach(alias => this.client.aliases.set(alias, command.name));
-                }
-            } catch (error) {
-                console.error(`Erro ao carregar o comando ${file}:`, error);
-            }
-        }
-
-        console.log(`Comandos carregados: ${this.client.commands.size}`);
-    }
-
     setupEventListeners() {
-        this.client.on('ready', () => {
+        this.client.on('ready', async () => {
             console.log(`Bot conectado como ${this.client.user.tag}`);
+            await this.commandHandler.registerCommands();
         });
-
-        this.client.on('messageCreate', this.handleMessage.bind(this));
-        this.client.on('voiceStateUpdate', this.handleVoiceState.bind(this));
+        this.client.on('interactionCreate', this.commandHandler.handleInteraction.bind(this.commandHandler));
+        this.client.on('voiceStateUpdate', this.playAudioHandler.execute.bind(this.playAudioHandler));
+        this.client.on('messageCreate', this.handleAIMessage.bind(this));
     }
 
-    handleMessage(message) {
+    async handleAIMessage(message) {
         if (message.author.bot) return;
-        const prefix = this.config.prefix;
-        if (!message.content.startsWith(prefix)) return;
 
-        const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
+        const channelContext = this.channelContexts.get(message.channel.id);
+        if (!channelContext || message.channel.parentId !== '1316251242430992414') return;
 
-        const command = this.client.commands.get(commandName) || this.client.commands.get(this.client.aliases.get(commandName));
+        try {
+            const userMessage = message.content.trim();
+            const processingMsg = await message.channel.send('🔄 Processando...');
 
-        if (command) {
-            try {
-                command.run(this.client, message, args);
-            } catch (error) {
-                console.error(`Erro ao executar o comando ${commandName}:`, error);
-                message.reply('Houve um erro ao executar esse comando.');
-            }
+            channelContext.messages.push({ role: 'user', content: userMessage });
+
+            const conversationHistory = channelContext.messages.map(msg => `${msg.role}: ${msg.content}`).join("\n");
+            const result = await channelContext.model.generateContent(conversationHistory);
+            const aiResponseText = result.response.text();
+
+            channelContext.messages.push({ role: 'assistant', content: aiResponseText });
+
+            await processingMsg.edit({
+                content: `${aiResponseText}`,
+            });
+        } catch (error) {
+            console.error('Erro ao processar mensagem da IA:', error);
+            await message.channel.send(`❌ Erro ao processar sua mensagem: ${error.message}`);
         }
     }
 
-    handleVoiceState(oldState, newState) {
-        this.playAudioHandler.execute(oldState, newState);
-    }
 }
 
 export default DiscordBot;
