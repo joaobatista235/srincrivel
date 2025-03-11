@@ -1,5 +1,3 @@
----
-
 ```markdown
 # Bot de Discord 🤖
 
