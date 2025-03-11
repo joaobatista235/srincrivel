@@ -8,14 +8,13 @@ Um bot de Discord desenvolvido em **Node.js v18** para um servidor pessoal entre
 
 ## Índice 📚
 
-- [Visão Geral](#visão-geral-)
+- [Visão Geral](#visao-geral-)
 - [Funcionalidades](#funcionalidades-)
 - [Tecnologias Utilizadas](#tecnologias-utilizadas-)
-- [Pré-requisitos](#pré-requisitos-)
+- [Pré-requisitos](#pre-requisitos-)
 - [Como Executar](#como-executar-)
 - [Estrutura do Projeto](#estrutura-do-projeto-)
-- [Contribuição](#contribuição-)
-- [Licença](#licença-)
+- [Licença](#licenca-)
 
 ---
 
@@ -62,7 +61,7 @@ Este bot foi desenvolvido para um servidor de Discord pessoal, com o objetivo de
 
 ---
 
-## Pré-requisitos 📋
+## Pré-requisitos 👋
 
 Antes de executar o projeto, certifique-se de ter instalado:
 
@@ -104,7 +103,7 @@ Siga os passos abaixo para rodar o bot localmente:
 
 ---
 
-## Estrutura do Projeto 🗂️
+## Estrutura do Projeto 📂
 
 ```
 bot-discord/
@@ -123,32 +122,11 @@ bot-discord/
 
 ---
 
-## Contribuição 🤝
-
-Contribuições são bem-vindas! Siga os passos abaixo:
-
-1. Faça um fork do projeto.
-2. Crie uma branch para sua feature:
-   ```bash
-   git checkout -b feature/nova-feature
-   ```
-3. Commit suas alterações:
-   ```bash
-   git commit -m "Adiciona nova feature"
-   ```
-4. Envie as alterações:
-   ```bash
-   git push origin feature/nova-feature
-   ```
-5. Abra um Pull Request.
-
----
-
-## Licença 📜
+## Licença 📚
 
 Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
 Feito com ❤️ por [João Batista](https://github.com/joaobatista235).
-```
+
