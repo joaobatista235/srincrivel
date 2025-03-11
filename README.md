@@ -1,3 +1,4 @@
+
 ```markdown
 # Bot de Discord 🤖
 
@@ -31,13 +32,17 @@ Este bot foi desenvolvido para um servidor de Discord pessoal, com o objetivo de
 - **Reprodução de Músicas**:
   - Busca e toca músicas diretamente do YouTube.
   - Suporte para playlists e integração com Spotify, SoundCloud e Deezer.
+
 - **Inteligência Artificial**:
   - Cria um chat privado com um usuário e mantém uma conversa fluida.
   - Responde com base em um prompt pré-configurado, incluindo informações sobre o servidor e membros.
+
 - **Áudios de Introdução**:
   - Reproduz um áudio personalizado sempre que um membro entra em call.
+
 - **Slash Commands**:
   - Comandos interativos para facilitar a interação com o bot.
+
 - **Código Limpo e Modular**:
   - Estrutura orientada a objetos e organização em pastas para facilitar a manutenção e expansão.
 
@@ -52,6 +57,7 @@ Este bot foi desenvolvido para um servidor de Discord pessoal, com o objetivo de
   - `@google/generative-ai`: Para integração com inteligência artificial.
   - `ffmpeg-static`: Para processamento de áudio.
   - `dotenv`: Para gerenciamento de variáveis de ambiente.
+  
 - **Outras Dependências**:
   - `@discordjs/opus` e `@discordjs/voice`: Para suporte a áudio.
   - `libsodium-wrappers`: Para criptografia.
