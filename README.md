@@ -150,5 +150,3 @@ Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](LICEN
 
 Feito com ❤️ por [João Batista](https://github.com/joaobatista235).
 ```
-
----
