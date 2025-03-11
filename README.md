@@ -1,6 +1,6 @@
 # Bot de Discord 🤖
 
-![Bot Logo](https://media.stickerswiki.app/mrexcept/80554.512.webp)
+<img src="https://media.stickerswiki.app/mrexcept/80554.512.webp" alt="Bot Logo" width="300"/>
 
 Um bot de Discord desenvolvido em **Node.js v18** para um servidor pessoal entre amigos. O bot é orientado a objetos e possui funcionalidades avançadas, como reprodução de músicas, integração com inteligência artificial e áudios de introdução personalizados.
 
