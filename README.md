@@ -1,5 +1,3 @@
-
-```markdown
 # Bot de Discord 🤖
 
 ![Bot Logo](https://media.stickerswiki.app/mrexcept/80554.512.webp)
