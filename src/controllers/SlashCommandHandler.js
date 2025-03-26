@@ -57,16 +57,32 @@ class SlashCommandHandler {
 
     setupInteractionHandler() {
         this.client.on('interactionCreate', async interaction => {
-            if (!interaction.isCommand()) return;
+            if (interaction.isCommand()) {
+                const command = this.client.commands.get(interaction.commandName);
 
-            const command = this.client.commands.get(interaction.commandName);
-
-            if (command) {
-                try {
-                    await command.run(this.client, interaction);
-                } catch (err) {
-                    console.error(`Erro ao executar o comando ${interaction.commandName}:`, err);
-                    await interaction.reply(`❌ Ocorreu um erro ao executar o comando: ${err.message}`);
+                if (command) {
+                    try {
+                        await command.execute(this.client, interaction);
+                    } catch (err) {
+                        console.error(`Erro ao executar o comando ${interaction.commandName}:`, err);
+                        await interaction.reply(`❌ Ocorreu um erro ao executar o comando: ${err.message}`);
+                    }
+                }
+            } else if (interaction.isStringSelectMenu()) {
+                // Tratamento específico para o jogo de xadrez
+                if (interaction.channelId && interaction.channel.name.startsWith('chess-')) {
+                    const chessCommand = this.client.commands.get('chess');
+                    if (chessCommand) {
+                        try {
+                            await chessCommand.handleInteraction(interaction);
+                        } catch (err) {
+                            console.error('Erro ao processar interação do xadrez:', err);
+                            await interaction.reply({
+                                content: '❌ Ocorreu um erro ao processar sua seleção.',
+                                ephemeral: true
+                            });
+                        }
+                    }
                 }
             }
         });
