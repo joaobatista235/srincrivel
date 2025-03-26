@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "bin": {
+    "srincrivel": "./index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,10 +22,20 @@
     "@distube/yt-dlp": "^2.0.1",
     "@google-ai/generativelanguage": "^2.8.0",
     "@google/generative-ai": "^0.21.0",
+    "canvas": "^3.1.0",
+    "chess.js": "^1.1.0",
     "discord.js": "^14.16.3",
     "distube": "^5.0.4",
     "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
-    "libsodium-wrappers": "^0.7.15"
+    "libsodium-wrappers": "^0.7.15",
+    "stockfish": "^10.0.0",
+    "stockfish.js": "^10.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.26.4",
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-syntax-import-meta": "^7.10.4",
+    "@babel/preset-env": "^7.26.0"
   }
 }

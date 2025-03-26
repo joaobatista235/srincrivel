@@ -47,27 +47,53 @@ class CommandHandler {
     }
 
     async handleInteraction(interaction) {
-        if (!interaction.isChatInputCommand()) return;
+        console.log('Interaction received:', {
+            type: interaction.type,
+            isCommand: interaction.isChatInputCommand(),
+            isSelect: interaction.isStringSelectMenu(),
+            isButton: interaction.isButton(),
+            commandName: interaction.commandName,
+            customId: interaction.customId
+        });
 
-        const command = interaction.client.commands.get(interaction.commandName);
+        if (interaction.isChatInputCommand()) {
+            const command = interaction.client.commands.get(interaction.commandName);
 
-        if (!command) {
-            console.error(`Nenhum comando correspondente encontrado para ${interaction.commandName}.`);
-            return;
-        }
+            if (!command) {
+                console.error(`Nenhum comando correspondente encontrado para ${interaction.commandName}.`);
+                return;
+            }
 
-        try {
-            await command.execute(interaction, this.distube, this.channelContexts);
-        } catch (error) {
-            console.error(`Erro ao executar o comando ${interaction.commandName}:`, error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
-            } else {
-                await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
+            try {
+                await command.execute(interaction, this.distube, this.channelContexts);
+            } catch (error) {
+                console.error(`Erro ao executar o comando ${interaction.commandName}:`, error);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
+                } else {
+                    await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
+                }
+            }
+        } else if ((interaction.isStringSelectMenu() || interaction.isButton()) && 
+                 interaction.channel.name.startsWith('chess-')) {
+            const chessCommand = interaction.client.commands.get('chess');
+            if (chessCommand) {
+                try {
+                    await chessCommand.handleInteraction(interaction);
+                } catch (err) {
+                    console.error('Erro ao processar interação do xadrez:', err);
+                    try {
+                        await interaction.channel.send({
+                            content: '❌ Ocorreu um erro ao processar sua seleção.',
+                            ephemeral: true
+                        });
+                    } catch (e) {
+                        console.error('Erro ao enviar mensagem de erro:', e);
+                    }
+                }
             }
         }
     }
 }
-
 
 export default CommandHandler;

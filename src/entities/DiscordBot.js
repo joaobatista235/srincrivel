@@ -83,6 +83,19 @@ class DiscordBot {
         }
     }
 
+    async sendMessagesToUsers() {
+        for (const [userId, userInfo] of Object.entries(usuarios)) {
+            try {
+                const user = await this.client.users.fetch(userId);
+                if (user) {
+                    await user.send(`🎄 Feliz Natal, ${userInfo.name}! Que seu dia seja repleto de alegria e bons momentos! 🎅`);
+                    console.log(`Mensagem enviada para ${userInfo.name} (${userId})`);
+                }
+            } catch (error) {
+                console.error(`Erro ao enviar mensagem para ${userId}:`, error);
+            }
+        }
+    }
 }
 
 export default DiscordBot;
