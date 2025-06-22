@@ -4,199 +4,151 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { getDirname } from '../utils/paths.js';
 
-const __dirname = getDirname(import.meta.url)
+const __dirname = getDirname(import.meta.url);
 
-// Caminho do executável do Stockfish (ajustado para a estrutura correta)
-const enginePath = path.join(__dirname, '..', 'engine', 'stockfish.exe');
-console.log('Procurando Stockfish em:', enginePath);
+class StockfishWorker {
+    constructor() {
+        this.engine = null;
+        this.engineReady = false;
+        this.buffer = '';
+        this.init();
+    }
 
-// Verifica se o arquivo existe
-if (!existsSync(enginePath)) {
-    console.error('❌ Stockfish não encontrado em:', enginePath);
-    parentPort.postMessage({
-        type: 'error',
-        message: `Stockfish não encontrado. Verifique se o arquivo está em: ${enginePath}`
-    });
-    process.exit(1);
-}
+    log(...args) {
+        console.log('[StockfishWorker]', ...args);
+    }
+    logError(...args) {
+        console.error('[StockfishWorker]', ...args);
+    }
+    sendToParent(msg) {
+        parentPort.postMessage(msg);
+    }
 
-console.log('✅ Stockfish encontrado!');
+    init() {
+        const enginePath = path.join(__dirname, '..', 'engine', 'stockfish.exe');
+        this.log('Procurando Stockfish em:', enginePath);
 
-// Inicializa a engine como processo filho
-let engine;
-let engineReady = false;
+        if (!existsSync(enginePath)) {
+            this.logError('Stockfish não encontrado em:', enginePath);
+            this.sendToParent({ type: 'error', message: `Stockfish não encontrado. Verifique se o arquivo está em: ${enginePath}` });
+            process.exit(1);
+        }
+        this.log('Stockfish encontrado!');
 
-try {
-    engine = spawn(enginePath, [], {
-        stdio: ['pipe', 'pipe', 'pipe']
-    });
-    console.log('🚀 Stockfish iniciado com PID:', engine.pid);
-} catch (error) {
-    console.error('❌ Erro ao iniciar Stockfish:', error);
-    parentPort.postMessage({
-        type: 'error',
-        message: `Erro ao iniciar Stockfish: ${error.message}`
-    });
-    process.exit(1);
-}
+        try {
+            this.engine = spawn(enginePath, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+            this.log('Stockfish iniciado com PID:', this.engine.pid);
+        } catch (error) {
+            this.logError('Erro ao iniciar Stockfish:', error);
+            this.sendToParent({ type: 'error', message: `Erro ao iniciar Stockfish: ${error.message}` });
+            process.exit(1);
+        }
 
-// Buffer para processar saída linha por linha
-let buffer = '';
+        this.engine.stdout.on('data', (data) => this.handleEngineOutput(data.toString()));
+        this.engine.stderr.on('data', (data) => this.handleEngineError(data.toString()));
+        this.engine.on('error', (err) => {
+            this.logError('Erro no processo Stockfish:', err);
+            this.sendToParent({ type: 'error', message: `Erro no processo Stockfish: ${err.message}` });
+        });
+        this.engine.on('close', (code, signal) => {
+            this.log(`Stockfish fechou - Código: ${code}, Sinal: ${signal}`);
+            this.sendToParent({ type: 'closed', code, signal });
+        });
 
-// Lê a saída da engine
-engine.stdout.on('data', (data) => {
-    buffer += data.toString();
+        parentPort.on('message', (data) => this.handleParentMessage(data));
 
-    let lines = buffer.split('\n');
-    buffer = lines.pop() || ''; // Mantém pedaços incompletos
+        process.on('SIGTERM', () => this.cleanup());
+        process.on('SIGINT', () => this.cleanup());
+        process.on('exit', () => this.cleanup());
 
-    for (let line of lines) {
-        const message = line.trim();
-        if (message) {
-            console.log('📡 [Stockfish]:', message);
+        this.log('Enviando comando UCI...');
+        this.engine.stdin.write('uci\n');
+    }
 
-            // Engine pronta
+    handleEngineOutput(data) {
+        this.buffer += data;
+        let lines = this.buffer.split('\n');
+        this.buffer = lines.pop() || '';
+        for (let line of lines) {
+            const message = line.trim();
+            if (!message) continue;
+            this.log('[Engine]:', message);
             if (message === 'uciok') {
-                engineReady = true;
-                console.log('✅ Stockfish pronto para receber comandos');
-                parentPort.postMessage({ type: 'ready' });
+                this.engineReady = true;
+                this.log('Stockfish pronto para receber comandos');
+                this.sendToParent({ type: 'ready' });
             }
-
-            // Melhor movimento encontrado
             if (message.startsWith('bestmove')) {
                 const parts = message.split(' ');
                 const bestMove = parts[1];
-                console.log('🎯 Melhor movimento encontrado:', bestMove);
-                parentPort.postMessage({
-                    type: 'bestMove',
-                    move: bestMove,
-                    fullMessage: message
-                });
+                this.log('Melhor movimento encontrado:', bestMove);
+                this.sendToParent({ type: 'bestMove', move: bestMove, fullMessage: message });
             }
-
-            // Informações de análise
             if (message.startsWith('info')) {
-                parentPort.postMessage({
-                    type: 'analysis',
-                    info: message
-                });
+                this.sendToParent({ type: 'analysis', info: message });
             }
         }
     }
-});
 
-// Lida com erros da engine
-engine.stderr.on('data', (data) => {
-    const errorMsg = data.toString().trim();
-    if (errorMsg) {
-        console.error('❌ [Stockfish Error]:', errorMsg);
-        parentPort.postMessage({
-            type: 'engineError',
-            message: errorMsg
-        });
-    }
-});
-
-// Lida com erros do processo
-engine.on('error', (err) => {
-    console.error('❌ Erro no processo Stockfish:', err);
-    parentPort.postMessage({
-        type: 'error',
-        message: `Erro no processo Stockfish: ${err.message}`
-    });
-});
-
-// Lida com o fechamento do processo
-engine.on('close', (code, signal) => {
-    console.log(`🔚 Stockfish fechou - Código: ${code}, Sinal: ${signal}`);
-    parentPort.postMessage({
-        type: 'closed',
-        code: code,
-        signal: signal
-    });
-});
-
-// Envia o comando inicial para inicializar o protocolo UCI
-console.log('📤 Enviando comando UCI...');
-engine.stdin.write('uci\n');
-
-// Recebe comandos do processo principal
-parentPort.on('message', (data) => {
-    console.log('📨 Comando recebido:', data);
-
-    if (data.type === 'ping') {
-        parentPort.postMessage({ type: 'pong', ready: engineReady });
-        return;
+    handleEngineError(data) {
+        const errorMsg = data.trim();
+        if (errorMsg) {
+            this.logError('[Engine Error]:', errorMsg);
+            this.sendToParent({ type: 'engineError', message: errorMsg });
+        }
     }
 
-    if (!engineReady && data.type !== 'init') {
-        parentPort.postMessage({
-            type: 'error',
-            message: 'Stockfish ainda não está pronto. Aguarde a inicialização.'
-        });
-        return;
-    }
-
-    try {
-        if (data.type === 'findBestMove') {
-            console.log('🔍 Procurando melhor movimento...');
-            console.log(`   FEN: ${data.fen}`);
-            console.log(`   ELO: ${data.elo || 'Não limitado'}`);
-
-            // Configura força da engine se ELO foi especificado
-            if (data.elo) {
-                engine.stdin.write(`setoption name UCI_LimitStrength value true\n`);
-                engine.stdin.write(`setoption name UCI_Elo value ${data.elo}\n`);
-            } else {
-                engine.stdin.write(`setoption name UCI_LimitStrength value false\n`);
-            }
-
-            // Define a posição e inicia a busca
-            engine.stdin.write(`position fen ${data.fen}\n`);
-            engine.stdin.write(`go movetime ${data.time || 1000}\n`);
+    handleParentMessage(data) {
+        this.log('Comando recebido:', data);
+        if (data.type === 'ping') {
+            this.sendToParent({ type: 'pong', ready: this.engineReady });
+            return;
         }
-
-        if (data.type === 'stop') {
-            console.log('⏹️ Parando análise...');
-            engine.stdin.write('stop\n');
+        if (!this.engineReady && data.type !== 'init') {
+            this.sendToParent({ type: 'error', message: 'Stockfish ainda não está pronto. Aguarde a inicialização.' });
+            return;
         }
-
-        if (data.type === 'quit') {
-            console.log('👋 Encerrando Stockfish...');
-            engine.stdin.write('quit\n');
-        }
-
-        if (data.type === 'customCommand') {
-            console.log('⚙️ Comando customizado:', data.command);
-            engine.stdin.write(data.command + '\n');
-        }
-
-    } catch (error) {
-        console.error('❌ Erro ao enviar comando:', error);
-        parentPort.postMessage({
-            type: 'error',
-            message: `Erro ao enviar comando: ${error.message}`
-        });
-    }
-});
-
-// Limpa recursos quando o worker é encerrado
-const cleanup = () => {
-    console.log('🧹 Limpando recursos...');
-    if (engine && !engine.killed) {
         try {
-            engine.stdin.write('quit\n');
-            engine.kill('SIGTERM');
+            if (data.type === 'findBestMove') {
+                this.log('Procurando melhor movimento...');
+                this.log(`   FEN: ${data.fen}`);
+                this.log(`   ELO: ${data.elo || 'Não limitado'}`);
+                if (data.elo) {
+                    this.engine.stdin.write(`setoption name UCI_LimitStrength value true\n`);
+                    this.engine.stdin.write(`setoption name UCI_Elo value ${data.elo}\n`);
+                } else {
+                    this.engine.stdin.write(`setoption name UCI_LimitStrength value false\n`);
+                }
+                this.engine.stdin.write(`position fen ${data.fen}\n`);
+                this.engine.stdin.write(`go movetime ${data.time || 1000}\n`);
+            } else if (data.type === 'stop') {
+                this.log('Parando análise...');
+                this.engine.stdin.write('stop\n');
+            } else if (data.type === 'quit') {
+                this.log('Encerrando Stockfish...');
+                this.engine.stdin.write('quit\n');
+            } else if (data.type === 'customCommand') {
+                this.log('Comando customizado:', data.command);
+                this.engine.stdin.write(data.command + '\n');
+            }
         } catch (error) {
-            console.error('Erro ao encerrar engine:', error);
-            engine.kill('SIGKILL');
+            this.logError('Erro ao enviar comando:', error);
+            this.sendToParent({ type: 'error', message: `Erro ao enviar comando: ${error.message}` });
         }
     }
-};
 
-process.on('SIGTERM', cleanup);
-process.on('SIGINT', cleanup);
-process.on('exit', cleanup);
+    cleanup() {
+        this.log('Limpando recursos...');
+        if (this.engine && !this.engine.killed) {
+            try {
+                this.engine.stdin.write('quit\n');
+                this.engine.kill('SIGTERM');
+            } catch (error) {
+                this.logError('Erro ao encerrar engine:', error);
+                this.engine.kill('SIGKILL');
+            }
+        }
+    }
+}
 
-// Avisa que o worker foi iniciado
-console.log('🔧 Worker do Stockfish inicializado');
+new StockfishWorker();

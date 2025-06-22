@@ -2,7 +2,7 @@ import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getDirname } from '../utils/paths.js';
+import { __dirname } from '../utils/discord-bot-config.js';
 
 class CommandHandler {
     constructor(client, distube, channelContext) {
@@ -13,7 +13,7 @@ class CommandHandler {
     }
 
     async loadCommands() {
-        const commandsPath = path.join(getDirname(import.meta.url), '..', 'commands');
+        const commandsPath = path.join(__dirname, '..', 'commands');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
         for (const file of commandFiles) {
