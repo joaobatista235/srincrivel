@@ -1,14 +1,14 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { context } from '../config/srIncrivelContext.js';
-import usuarios from '../config/usuarios.json' assert { type: 'json' };
+import usuarios from '../utils/usuarios.json' assert { type: 'json' };
+import dotenv from 'dotenv';
 
 export default {
     data: new SlashCommandBuilder()
         .setName('chat')
         .setDescription('Cria um chat privado com IA.'),
 
-    async execute(interaction, distube, channelContext) {
+    async execute(interaction, _distube, channelContext) {
         if (!interaction.guild) {
             return interaction.reply({
                 content: "❌ Este comando só pode ser usado em um servidor.",
@@ -40,9 +40,10 @@ export default {
                     },
                 ],
             });
-            const contextInitial = context + `
+            
+            dotenv.config();
+            const contextInitial = process.env.CONTEXT + `
             Você está conversando com o usuário de ID ${interaction.user.id} que se chama ${usuarios[interaction.user.id].name}
-            Trate os usuários pelo nome.
             `;
 
             const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);

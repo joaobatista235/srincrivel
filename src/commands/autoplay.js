@@ -4,6 +4,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('autoplay')
     .setDescription('Ativa ou desativa o modo autoplay na fila de músicas.'),
+    
   async execute(interaction, distube) {
     const voiceChannel = interaction.member?.voice.channel;
     if (!voiceChannel) {

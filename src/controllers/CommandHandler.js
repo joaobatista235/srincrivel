@@ -2,10 +2,7 @@ import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getDirname } from '../utils/paths.js';
 
 class CommandHandler {
     constructor(client, distube, channelContext) {
@@ -16,7 +13,7 @@ class CommandHandler {
     }
 
     async loadCommands() {
-        const commandsPath = path.join(__dirname, '..', 'commands');
+        const commandsPath = path.join(getDirname(import.meta.url), '..', 'commands');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
         for (const file of commandFiles) {
@@ -56,14 +53,8 @@ class CommandHandler {
             customId: interaction.customId
         });
 
-        if (interaction.isChatInputCommand()) {
-            const command = interaction.client.commands.get(interaction.commandName);
-
-            if (!command) {
-                console.error(`Nenhum comando correspondente encontrado para ${interaction.commandName}.`);
-                return;
-            }
-
+        const command = interaction.client.commands.get(interaction.commandName ?? interaction.customId);
+        if (command) {
             try {
                 await command.execute(interaction, this.distube, this.channelContexts);
             } catch (error) {
@@ -74,8 +65,7 @@ class CommandHandler {
                     await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
                 }
             }
-        } else if ((interaction.isStringSelectMenu() || interaction.isButton()) && 
-                 interaction.channel.name.startsWith('chess-')) {
+        } else if ((interaction.isStringSelectMenu() || interaction.isButton()) && interaction.channel.name.startsWith('Xadrez-')) {
             const chessCommand = interaction.client.commands.get('chess');
             if (chessCommand) {
                 try {
@@ -93,6 +83,7 @@ class CommandHandler {
                 }
             }
         }
+
     }
 }
 

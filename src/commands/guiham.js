@@ -8,20 +8,17 @@ export default {
             option.setName('mensagem')
                 .setDescription('Conteúdo da mensagem.')
                 .setRequired(true)),
+
     async execute(interaction) {
         try {
             const mensagem = interaction.options.getString('mensagem');
-
-            const userId = '465188039656734721';
-
-            const user = await interaction.client.users.fetch(userId);
+            const user = await interaction.client.users.fetch('465188039656734721');
 
             if (!user) {
                 return interaction.reply({ content: '❌ Não foi possível encontrar o usuário especificado.', ephemeral: true });
             }
 
             await user.send(mensagem);
-
             await interaction.reply({ content: '✅ Mensagem enviada com sucesso para o guiham!', ephemeral: true });
         } catch (err) {
             console.error("Erro:", err);

@@ -1,46 +1,27 @@
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import { Client, Collection } from 'discord.js';
 import { DisTube } from 'distube';
-import { YtDlpPlugin } from '@distube/yt-dlp';
-import { YouTubePlugin } from '@distube/youtube';
 import dotenv from 'dotenv';
 import CommandHandler from '../controllers/CommandHandler.js';
 import DistubeHandler from '../controllers/DistubeHandler.js';
 import PlayAudioHandler from '../controllers/PlayAudioHandler.js';
-import usuarios from '../config/usuarios.json' assert { type: 'json' };
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config();
+import usuarios from '../utils/usuarios.json' assert { type: 'json' };
+import { getDirname } from '../utils/paths.js';
+import { intents, plugins } from '../utils/discord-bot-config.js';
 
 class DiscordBot {
     constructor() {
-        this.client = new Client({
-            intents: [
-                GatewayIntentBits.Guilds,
-                GatewayIntentBits.GuildMessages,
-                GatewayIntentBits.MessageContent,
-                GatewayIntentBits.GuildVoiceStates,
-                GatewayIntentBits.GuildMembers,
-            ],
-        });
-        this.distube = new DisTube(this.client, {
-            plugins: [new YtDlpPlugin(), new YouTubePlugin()],
-            emitNewSongOnly: true,
-        });
+        dotenv.config();
+        this.client = new Client({ intents });
+        this.distube = new DisTube(this.client, plugins);
         this.channelContexts = new Map();
         this.commandHandler = new CommandHandler(this.client, this.distube, this.channelContexts);
         this.distubeHandler = new DistubeHandler(this.client, this.distube);
-        this.playAudioHandler = new PlayAudioHandler(this.client, usuarios, __dirname);
-
+        this.playAudioHandler = new PlayAudioHandler(this.client, usuarios, getDirname(import.meta.url));
         this.client.commands = new Collection();
     }
 
     async initialize() {
         await this.commandHandler.loadCommands();
-
         this.distubeHandler.init();
         this.setupEventListeners();
         await this.client.login(process.env.TOKEN);
@@ -83,19 +64,19 @@ class DiscordBot {
         }
     }
 
-    async sendMessagesToUsers() {
-        for (const [userId, userInfo] of Object.entries(usuarios)) {
-            try {
-                const user = await this.client.users.fetch(userId);
-                if (user) {
-                    await user.send(`🎄 Feliz Natal, ${userInfo.name}! Que seu dia seja repleto de alegria e bons momentos! 🎅`);
-                    console.log(`Mensagem enviada para ${userInfo.name} (${userId})`);
-                }
-            } catch (error) {
-                console.error(`Erro ao enviar mensagem para ${userId}:`, error);
-            }
-        }
-    }
+    // async sendMessagesToUsers() {
+    //     for (const [userId, userInfo] of Object.entries(usuarios)) {
+    //         try {
+    //             const user = await this.client.users.fetch(userId);
+    //             if (user) {
+    //                 await user.send(`🎄 Feliz Natal, ${userInfo.name}! Que seu dia seja repleto de alegria e bons momentos! 🎅`);
+    //                 console.log(`Mensagem enviada para ${userInfo.name} (${userId})`);
+    //             }
+    //         } catch (error) {
+    //             console.error(`Erro ao enviar mensagem para ${userId}:`, error);
+    //         }
+    //     }
+    // }
 }
 
 export default DiscordBot;

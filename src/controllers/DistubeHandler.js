@@ -1,5 +1,4 @@
-import { Events } from 'distube';
-import listeners from '../config/listeners.js';
+import listeners from '../components/listeners.js';
 
 class DisTubeHandler {
     constructor(client, distube) {
@@ -11,11 +10,13 @@ class DisTubeHandler {
         this.distube
             .on('playSong', (queue, song) => this.onPlaySong(queue, song))
             .on('addSong', (queue, song) => this.onAddSong(queue, song))
-            .on(Events.ERROR, (queue, err) => this.onError(queue, err))
             .on('finish', queue => queue.textChannel?.send('🚫 Fim da fila!'))
             .on('finishSong', queue => queue.textChannel?.send('⏹️ Fim da música!'))
             .on('disconnect', queue => queue.textChannel?.send('❌ Desconectado do canal de voz.'))
-            .on('empty', queue => queue.textChannel?.send('⚠️ O canal de voz está vazio. Saindo do canal...'));
+            .on('empty', queue => queue.textChannel?.send('⚠️ O canal de voz está vazio. Saindo do canal...'))
+            .on('error', (e, queue, song) => {
+                queue.textChannel.send(`An error encountered: ${e}`);
+            })
     }
 
     onPlaySong(queue, song) {
