@@ -4,6 +4,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('pause')
     .setDescription('Pausa ou retoma a música em reprodução.'),
+
   async execute(interaction, distube) {
     const voiceChannel = interaction.member?.voice.channel;
 

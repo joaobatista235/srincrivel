@@ -1,5 +1,5 @@
 import Discord from "discord.js";
-import buttons from "./buttons/buttons.js";
+import buttons from "./buttons.js";
 
 const buttonComponents = [
     { type: 1, components: [buttons.previous, buttons.pause, buttons.stop, buttons.next] },
