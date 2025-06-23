@@ -30,8 +30,6 @@ export default {
                 interaction
             });
 
-            await interaction.editReply(`🎶 Procurando: \`${query}\``);
-
         } catch (err) {
             console.error("Erro no DisTube:", err);
 

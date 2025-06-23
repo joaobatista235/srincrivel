@@ -1,4 +1,5 @@
-import listeners from '../components/listeners.js';
+import { EmbedBuilder } from "discord.js";
+import buttons from "../components/buttons.js";
 
 class DisTubeHandler {
     constructor(client, distube) {
@@ -10,21 +11,49 @@ class DisTubeHandler {
         this.distube
             .on('playSong', (queue, song) => this.onPlaySong(queue, song))
             .on('addSong', (queue, song) => this.onAddSong(queue, song))
-            .on('finish', queue => queue.textChannel?.send('🚫 Fim da fila!'))
-            .on('finishSong', queue => queue.textChannel?.send('⏹️ Fim da música!'))
-            .on('disconnect', queue => queue.textChannel?.send('❌ Desconectado do canal de voz.'))
-            .on('empty', queue => queue.textChannel?.send('⚠️ O canal de voz está vazio. Saindo do canal...'))
             .on('error', (e, queue, song) => {
                 queue.textChannel.send(`An error encountered: ${e}`);
             })
     }
 
-    onPlaySong(queue, song) {
-        listeners.onPlaySong(this.client.user.username, null, song.name, song.thumbnail, song.formattedDuration, queue.textChannel);
+    createEmbed({ color = "Random", author, title, thumbnail, fields, description }) {
+        const embed = new EmbedBuilder().setColor(color);
+        if (author) embed.setAuthor(author);
+        if (title) embed.setTitle(title);
+        if (thumbnail) embed.setThumbnail(thumbnail);
+        if (fields) embed.addFields(fields);
+        if (description) embed.setDescription(description);
+        return embed;
     }
 
-    onAddSong(queue, song) {
-        listeners.onAddSong(song.name, queue.textChannel);
+    async onPlaySong(queue, song) {
+        const embed = this.createEmbed({
+            author: { name: `🟣 ${this.client.user.username}` },
+            title: `Tocando ${song.name}`,
+            thumbnail: song.thumbnail,
+            fields: [
+                { name: 'Música', value: song.name, inline: true },
+                { name: 'Tempo', value: song.formattedDuration, inline: true },
+            ],
+            description: `🎶`,
+        });
+
+        await queue.textChannel.send({
+            embeds: [embed],
+            components: [
+                { type: 1, components: [buttons.previous, buttons.pause, buttons.stop, buttons.next] },
+                { type: 1, components: [buttons.autoplay] },
+            ],
+        });
+    }
+
+    async onAddSong(queue, song) {
+        const embed = this.createEmbed({
+            title: `Adicionada à fila`,
+            description: song.name,
+        });
+
+        await queue.textChannel.send({ embeds: [embed] });
     }
 
     onError(queue, err) {
