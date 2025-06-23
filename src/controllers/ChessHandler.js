@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import { createCanvas, loadImage } from 'canvas';
 import path from 'path';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { __dirname, RATINGS, STOCKFISH_ELO_LEVELS, COLORS, PIECES, PIECE_NAMES } from '../utils/discord-bot-config.js';
+import { __dirname, RATINGS, STOCKFISH_ELO_LEVELS, COLORS, PIECES, PIECE_NAMES, PERSONALITIES } from '../utils/discord-bot-config.js';
 
 class ChessHandler {
     constructor(stockfishHandler) {
@@ -55,7 +55,7 @@ class ChessHandler {
         if (this.resigned) return null;
         await this.stockfishHandler.initWorker(this.channelId);
         const fen = this.chess.fen();
-        const elo = STOCKFISH_ELO_LEVELS[this.rating];
+        const elo = this.getCurrentElo();;
         const bestMove = await this.stockfishHandler.getBestMove(fen, elo, this.channelId);
         if (!bestMove || bestMove === '(none)') {
             this.status = 'draw';
@@ -205,6 +205,15 @@ class ChessHandler {
         rows.push(controlRow);
         return rows.slice(0, 5);
     }
+
+    getCurrentElo() {
+        return STOCKFISH_ELO_LEVELS[this.rating] || 1200;
+    }
+
+    getCurrentPersonality() {
+        return PERSONALITIES[this.rating] || null;
+    }
+
 }
 
 export { RATINGS, COLORS, PIECE_NAMES };

@@ -7,7 +7,6 @@ import { getDirname } from '../utils/paths.js';
 
 const __dirname = getDirname(import.meta.url);
 
-// Estado dos jogos ativos por canal/thread
 const games = new Map();
 const stockfishHandler = new StockfishHandler();
 
@@ -127,7 +126,8 @@ export default {
                     await interaction.followUp({ content: "Movimento inválido!", ephemeral: true });
                     return;
                 }
-                if (game.getGameStatus() !== 'playing') {
+
+                if (game.getGameStatus() !== 'playing' && game.getGameStatus() !== 'check') {
                     await endGame(game, interaction.channel, gameMessage, getStatusText(game));
                     games.delete(channelId);
                     return;
@@ -225,7 +225,21 @@ async function getUpdateData(game, customStatus = null) {
         )
         .setImage('attachment://chess-board.png')
         .setTimestamp();
-    return { content: '', embeds: [embed], files: [{ attachment: boardBuffer, name: 'chess-board.png' }], components };
+
+    const personality = game.getCurrentPersonality();
+    if (personality) {
+        embed.setAuthor({
+            name: personality.name,
+            iconURL: `attachment://${personality.avatar}`
+        });
+    }
+
+    return {
+        content: '', embeds: [embed], files: [
+            { attachment: boardBuffer, name: 'chess-board.png' },
+            ...(personality ? [{ attachment: path.join(__dirname, '..', 'assets', 'avatars', personality.avatar), name: personality.avatar }] : [])
+        ], components
+    };
 }
 
 async function renderBoard(game, highlightSquares = []) {
@@ -284,18 +298,61 @@ async function performAIMove(game, channel) {
         games.delete(channel.id);
         return;
     }
-    if (game.getGameStatus() !== 'playing') {
+
+    if (game.getGameStatus() === 'check') {
+        await interaction.channel.send(`**Check!**`);
+    } else if (game.getGameStatus() !== 'playing' && game.getGameStatus() !== 'check') {
         const gameMessage = await channel.messages.fetch(game.gameMessageId);
         await endGame(game, channel, gameMessage, getStatusText(game));
         games.delete(channel.id);
         return;
     }
+
     const gameMessage = await channel.messages.fetch(game.gameMessageId);
     const updateData = await getUpdateData(game);
     await gameMessage.edit(updateData);
+    const personality = game.getCurrentPersonality();
+
+    if (personality && Array.isArray(personality.messages) && personality.messages.length > 0) {
+        if (!game._lastMessageIndex) game._lastMessageIndex = -1;
+        let messageIndex;
+        do {
+            messageIndex = Math.floor(Math.random() * personality.messages.length);
+        } while (messageIndex === game._lastMessageIndex && personality.messages.length > 1);
+        game._lastMessageIndex = messageIndex;
+        const message = personality.messages[messageIndex];
+        const combinedMessage = `**${personality.name}**: ${message}\n**Jogada da IA:** ${move.san}`;
+
+        try {
+            if (game.lastPersonalityMessageId) {
+                const previousMessage = await channel.messages.fetch(game.lastPersonalityMessageId);
+                await previousMessage.edit(combinedMessage);
+            } else {
+                const newMessage = await channel.send(combinedMessage);
+                game.lastPersonalityMessageId = newMessage.id;
+            }
+        } catch (error) {
+            console.error("Erro ao editar ou enviar mensagem da personalidade:", error);
+            const fallback = await channel.send(combinedMessage);
+            game.lastPersonalityMessageId = fallback.id;
+        }
+    } else {
+        const moveMsg = `**Jogada da IA:** ${move.san}`;
+        try {
+            if (game.lastPersonalityMessageId) {
+                const previousMessage = await channel.messages.fetch(game.lastPersonalityMessageId);
+                await previousMessage.edit(moveMsg);
+            } else {
+                const fallback = await channel.send(moveMsg);
+                game.lastPersonalityMessageId = fallback.id;
+            }
+        } catch (error) {
+            console.error("Erro ao editar ou enviar mensagem da IA:", error);
+        }
+    }
 }
 
-async function endGame(game, channel, gameMessage, statusText) {
+async function endGame(game, _channel, gameMessage, statusText) {
     const boardBuffer = await renderBoard(game);
     const embed = EmbedBuilder.from(gameMessage.embeds[0]);
     embed.setColor('#4f545c');

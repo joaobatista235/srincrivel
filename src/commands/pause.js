@@ -9,25 +9,69 @@ export default {
     const voiceChannel = interaction.member?.voice.channel;
 
     if (!voiceChannel) {
-      return interaction.reply({ content: '❌ Você precisa estar em um canal de voz para usar este comando.', ephemeral: true });
+      return interaction.reply({
+        content: '❌ Você precisa estar em um canal de voz para usar este comando.',
+        ephemeral: true
+      });
     }
 
     const queue = distube.getQueue(interaction.guildId);
     if (!queue) {
-      return interaction.reply({ content: '❌ Não há nenhuma música sendo reproduzida no momento.', ephemeral: true });
+      return interaction.reply({
+        content: '❌ Não há nenhuma música sendo reproduzida no momento.',
+        ephemeral: true
+      });
     }
 
     try {
+      const message = interaction.message;
+
       if (queue.paused) {
         await queue.resume();
-        return interaction.reply('▶️ A música foi retomada!');
+
+        if (message) {
+          const newComponents = message.components.map(row => {
+            const newRow = row.toJSON();
+            newRow.components = newRow.components.map(component => {
+              if (component.custom_id === 'pause') {
+                return { ...component, label: '⏸️ Pausar' };
+              }
+              return component;
+            });
+            return newRow;
+          });
+
+          await message.edit({ components: newComponents });
+        }
+
+        await interaction.deferUpdate();
+      } else {
+        await queue.pause();
+
+        if (message) {
+          const newComponents = message.components.map(row => {
+            const newRow = row.toJSON();
+            newRow.components = newRow.components.map(component => {
+              if (component.custom_id === 'pause') {
+                return { ...component, label: '▶️ Retomar' };
+              }
+              return component;
+            });
+            return newRow;
+          });
+
+          await message.edit({ components: newComponents });
+        }
+
+        await interaction.deferUpdate();
       }
 
-      await queue.pause();
-      return interaction.reply('⏸️ A música foi pausada!');
     } catch (err) {
       console.error('Erro ao pausar ou retomar a música:', err);
-      return interaction.reply({ content: `❌ Ocorreu um erro: ${err.message}`, ephemeral: true });
+      return interaction.reply({
+        content: `❌ Ocorreu um erro: ${err.message}`,
+        ephemeral: true
+      });
     }
   },
 };

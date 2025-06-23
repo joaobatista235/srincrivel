@@ -17,10 +17,17 @@ export default {
     }
 
     try {
+      const message = interaction.message;
+
       if (queue.paused) {
-        queue.resume();
+        await queue.resume();
         console.log("Resumindo a música");
-        await interaction.reply({ content: '🎶 Música retomada.' });
+
+        if (message) {
+          await updateButtonLabel(message, 'pause', '⏸️ Pausar');
+        }
+
+        await interaction.deferUpdate();
       } else {
         console.log("Fila não pausada");
         await interaction.reply({ content: '❌ A fila não está pausada.' });
