@@ -14,8 +14,12 @@ export const intents = [
 ];
 
 export const plugins = {
-    plugins: [new YtDlpPlugin(), new YouTubePlugin()],
+    plugins: [new YouTubePlugin(), new YtDlpPlugin()],
     emitNewSongOnly: true,
+    savePreviousSongs: true, // Salvar músicas anteriores para comando previous
+    nsfw: false, // Desabilitar conteúdo NSFW
+    emitAddSongWhenCreatingQueue: false, // Evitar eventos duplicados
+    emitAddListWhenCreatingQueue: false, // Evitar eventos duplicados
 }
 
 export const RATINGS = {

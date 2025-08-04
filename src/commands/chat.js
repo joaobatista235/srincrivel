@@ -2,6 +2,42 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.j
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import usuarios from '../utils/usuarios.json' assert { type: 'json' };
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
+import path from 'path';
+
+// Cache para o contexto
+let contextCache = null;
+let contextCacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// Função otimizada para ler CONTEXT do arquivo .env
+async function getContextFromFile() {
+    const now = Date.now();
+    
+    // Usar cache se válido
+    if (contextCache && (now - contextCacheTimestamp) < CACHE_DURATION) {
+        return contextCache;
+    }
+    
+    try {
+        const envPath = path.join(process.cwd(), '.env');
+        const envContent = await fs.readFile(envPath, 'utf8');
+        
+        // Extrair CONTEXT usando regex
+        const contextMatch = envContent.match(/CONTEXT="([\s\S]*?)"\s*$/m);
+        
+        if (contextMatch) {
+            contextCache = contextMatch[1];
+            contextCacheTimestamp = now;
+            return contextCache;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('❌ Erro ao ler arquivo .env:', error);
+        return null;
+    }
+}
 
 export default {
     data: new SlashCommandBuilder()
@@ -41,19 +77,33 @@ export default {
                 ],
             });
             
-            dotenv.config();
-            const contextInitial = process.env.CONTEXT + `
+            // Carregar contexto do arquivo
+            const contextFromFile = await getContextFromFile();
+            
+            if (!contextFromFile) {
+                await interaction.reply({
+                    content: '❌ Erro: Variável CONTEXT não configurada no arquivo .env',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            const contextInitial = contextFromFile + `
             Você está conversando com o usuário de ID ${interaction.user.id} que se chama ${usuarios[interaction.user.id].name}
             `;
 
             const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+            // Configurar contexto
             channelContext.set(privateChannel.id, {
                 model: model,
                 user: interaction.user.id,
                 messages: [{ role: 'system', content: contextInitial }]
             });
+
+            // Inicializar contexto no AIContextManager
+            interaction.client.contextManager.initializeContext(privateChannel.id, contextInitial);
 
             await privateChannel.send('Envie suas mensagens para começar a conversa com o Sr Incrível.');
 
@@ -66,6 +116,7 @@ export default {
                 try {
                     await privateChannel.delete('Canal de IA expirado');
                     channelContext.delete(privateChannel.id);
+                    interaction.client.contextManager.clearContext(privateChannel.id);
                 } catch (error) {
                     console.error('Erro ao excluir o canal de IA:', error);
                 }
