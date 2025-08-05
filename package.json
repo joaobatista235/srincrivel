@@ -29,9 +29,15 @@
     "discord.js": "^14.16.3",
     "distube": "^5.0.7",
     "dotenv": "^16.4.5",
-    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "form-data": "^4.0.4",
     "libsodium-wrappers": "^0.7.15",
-    "stockfish.js": "^10.0.2"
+    "node-fetch": "^3.3.2",
+    "nodejs-whisper": "^0.2.9",
+    "openai": "^5.11.0",
+    "prism-media": "^1.3.5",
+    "stockfish.js": "^10.0.2",
+    "whisper-node": "^1.1.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.26.4",

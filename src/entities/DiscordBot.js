@@ -78,7 +78,6 @@ class DiscordBot {
 
         this.client.on('messageCreate', this.handleAIMessage.bind(this));
 
-        // Monitorar erros
         this.client.on('error', (error) => {
             console.error('❌ Erro no cliente Discord:', error);
             this.performanceStats.totalErrors++;
