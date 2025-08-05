@@ -3,3 +3,4 @@ node_modules
 src/engine/*
 srincrivel.zip
 ideias.txt
+/src/utils/prompt.js
