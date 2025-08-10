@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import usuarios from '../utils/usuarios.json' assert { type: 'json' };
-import { PROMPT_CONTEXT } from '../utils/prompts';
+import { PROMPT_CONTEXT } from '../utils/prompts.js';
 
 export default {
     data: new SlashCommandBuilder()
