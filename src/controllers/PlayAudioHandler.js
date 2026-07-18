@@ -8,15 +8,6 @@ class PlayAudioUseCase {
         this.__dirname = __dirname;
         this.currentUser = null;
         this.isPlayingMusic = false;
-        this.audioCache = new Map();
-        this.performanceStats = {
-            totalAudiosPlayed: 0,
-            totalErrors: 0,
-            averagePlayTime: 0,
-            cacheHits: 0,
-            cacheMisses: 0
-        };
-        this.cacheTimeout = 30 * 60 * 1000; // 30 minutos
     }
 
     async execute(oldState, newState) {
@@ -51,21 +42,7 @@ class PlayAudioUseCase {
 
         if (!this.currentUser) {
             try {
-                const startTime = Date.now();
-
-                // Verificar cache de áudio
-                let audioResource = this.audioCache.get(userAudio.audio);
-                if (!audioResource || Date.now() - audioResource.timestamp > this.cacheTimeout) {
-                    // Carregar áudio do disco
-                    audioResource = createAudioResource(audioPath);
-                    this.audioCache.set(userAudio.audio, {
-                        resource: audioResource,
-                        timestamp: Date.now()
-                    });
-                    this.performanceStats.cacheMisses++;
-                } else {
-                    this.performanceStats.cacheHits++;
-                }
+                const audioResource = createAudioResource(audioPath);
 
                 const connection = joinVoiceChannel({
                     channelId: voiceChannel.id,
@@ -76,19 +53,15 @@ class PlayAudioUseCase {
                 const player = createAudioPlayer();
 
                 connection.subscribe(player);
-                player.play(audioResource.resource);
+                player.play(audioResource);
 
                 player.on(AudioPlayerStatus.Playing, () => {
                     console.log(`🎵 Tocando áudio para o usuário ${newState.id}!`);
                     this.isPlayingMusic = true;
-                    this.performanceStats.totalAudiosPlayed++;
                 });
 
                 player.on(AudioPlayerStatus.Idle, () => {
-                    const playTime = Date.now() - startTime;
-                    this.updateAveragePlayTime(playTime);
-
-                    console.log(`✅ Áudio para o usuário ${newState.id} finalizado em ${playTime}ms. Desconectando...`);
+                    console.log(`✅ Áudio para o usuário ${newState.id} finalizado. Desconectando...`);
                     this.isPlayingMusic = false;
                     this.currentUser = null;
                     setTimeout(() => {
@@ -100,7 +73,6 @@ class PlayAudioUseCase {
 
                 player.on('error', (error) => {
                     console.error(`❌ Erro no player de áudio para ${newState.id}:`, error);
-                    this.performanceStats.totalErrors++;
                     this.isPlayingMusic = false;
                     this.currentUser = null;
                 });
@@ -109,41 +81,8 @@ class PlayAudioUseCase {
 
             } catch (error) {
                 console.error(`❌ Erro ao tentar reproduzir o áudio para o usuário ${newState.id}:`, error);
-                this.performanceStats.totalErrors++;
                 this.isPlayingMusic = false;
                 this.currentUser = null;
-            }
-        }
-    }
-
-    updateAveragePlayTime(newTime) {
-        const currentAvg = this.performanceStats.averagePlayTime;
-        const totalAudios = this.performanceStats.totalAudiosPlayed;
-
-        this.performanceStats.averagePlayTime =
-            (currentAvg * (totalAudios - 1) + newTime) / totalAudios;
-    }
-
-    getPerformanceStats() {
-        const cacheHitRate = this.performanceStats.cacheHits + this.performanceStats.cacheMisses > 0
-            ? (this.performanceStats.cacheHits / (this.performanceStats.cacheHits + this.performanceStats.cacheMisses)) * 100
-            : 0;
-
-        return {
-            ...this.performanceStats,
-            cacheHitRate: `${cacheHitRate.toFixed(1)}%`,
-            cacheSize: this.audioCache.size,
-            errorRate: this.performanceStats.totalAudiosPlayed > 0
-                ? (this.performanceStats.totalErrors / this.performanceStats.totalAudiosPlayed) * 100
-                : 0
-        };
-    }
-
-    cleanupCache() {
-        const now = Date.now();
-        for (const [key, value] of this.audioCache) {
-            if (now - value.timestamp > this.cacheTimeout) {
-                this.audioCache.delete(key);
             }
         }
     }
@@ -155,7 +94,6 @@ class PlayAudioUseCase {
 
     // Método para forçar limpeza de cache
     forceCleanup() {
-        this.audioCache.clear();
         this.isPlayingMusic = false;
         this.currentUser = null;
     }

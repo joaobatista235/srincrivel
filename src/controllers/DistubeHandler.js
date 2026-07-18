@@ -5,14 +5,6 @@ class DisTubeHandler {
     constructor(client, distube) {
         this.client = client;
         this.distube = distube;
-        this.embedCache = new Map();
-        this.cacheTimeout = 10 * 60 * 1000; // 10 minutos
-        this.performanceStats = {
-            totalSongsPlayed: 0,
-            totalSongsAdded: 0,
-            averageEmbedCreationTime: 0,
-            errors: 0
-        };
     }
 
     init() {
@@ -26,7 +18,6 @@ class DisTubeHandler {
     }
 
     async handleError(e, queue) {
-        this.performanceStats.errors++;
         console.error('❌ Erro no DisTube:', e);
 
         try {
@@ -78,34 +69,17 @@ class DisTubeHandler {
     }
 
     async onPlaySong(queue, song) {
-        const startTime = Date.now();
-        this.performanceStats.totalSongsPlayed++;
-
         try {
-            // Usar cache para embeds similares
-            const cacheKey = `play-${song.name}-${song.duration}`;
-            let embed = this.embedCache.get(cacheKey);
-
-            if (!embed || Date.now() - embed.timestamp > this.cacheTimeout) {
-                embed = this.createEmbed({
-                    author: { name: `🟣 ${this.client.user.username}` },
-                    title: `Tocando ${song.name}`,
-                    thumbnail: song.thumbnail,
-                    fields: [
-                        { name: 'Música', value: song.name, inline: true },
-                        { name: 'Tempo', value: song.formattedDuration, inline: true },
-                    ],
-                    description: `🎶`,
-                });
-
-                // Cache do embed
-                this.embedCache.set(cacheKey, {
-                    embed,
-                    timestamp: Date.now()
-                });
-            } else {
-                embed = embed.embed;
-            }
+            const embed = this.createEmbed({
+                author: { name: `🟣 ${this.client.user.username}` },
+                title: `Tocando ${song.name}`,
+                thumbnail: song.thumbnail,
+                fields: [
+                    { name: 'Música', value: song.name, inline: true },
+                    { name: 'Tempo', value: song.formattedDuration, inline: true },
+                ],
+                description: `🎶`,
+            });
 
             await queue.textChannel.send({
                 embeds: [embed],
@@ -114,19 +88,12 @@ class DisTubeHandler {
                     { type: 1, components: [buttons.autoplay] },
                 ],
             });
-
-            const creationTime = Date.now() - startTime;
-            this.updateAverageEmbedTime(creationTime);
-
         } catch (error) {
             console.error('❌ Erro ao enviar embed de música:', error);
-            this.performanceStats.errors++;
         }
     }
 
     async onAddSong(queue, song) {
-        this.performanceStats.totalSongsAdded++;
-
         try {
             const embed = this.createEmbed({
                 title: `Adicionada à fila`,
@@ -136,38 +103,11 @@ class DisTubeHandler {
             await queue.textChannel.send({ embeds: [embed] });
         } catch (error) {
             console.error('❌ Erro ao enviar embed de música adicionada:', error);
-            this.performanceStats.errors++;
-        }
-    }
-
-    updateAverageEmbedTime(newTime) {
-        const currentAvg = this.performanceStats.averageEmbedCreationTime;
-        const totalSongs = this.performanceStats.totalSongsPlayed;
-
-        this.performanceStats.averageEmbedCreationTime =
-            (currentAvg * (totalSongs - 1) + newTime) / totalSongs;
-    }
-
-    getPerformanceStats() {
-        return {
-            ...this.performanceStats,
-            cacheSize: this.embedCache.size,
-            cacheKeys: Array.from(this.embedCache.keys())
-        };
-    }
-
-    cleanupCache() {
-        const now = Date.now();
-        for (const [key, value] of this.embedCache) {
-            if (now - value.timestamp > this.cacheTimeout) {
-                this.embedCache.delete(key);
-            }
         }
     }
 
     onError(queue, err) {
         console.error('❌ Erro no DisTube:', err);
-        this.performanceStats.errors++;
 
         try {
             queue.textChannel?.send(`❌ Erro no player: ${err.message}`);

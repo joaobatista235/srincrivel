@@ -3,14 +3,12 @@ class AIContextManager {
         this.contexts = new Map();
         this.maxContexts = 100;
         this.maxMessages = 50;
-        this.cleanupInterval = 5 * 60 * 1000; // 5 minutos
-        this.messageTimeout = 30 * 60 * 1000; // 30 minutos
+        this.cleanupInterval = 5 * 60 * 1000;
+        this.messageTimeout = 30 * 60 * 1000;
 
-        // Iniciar limpeza automática
         this.startCleanup();
     }
 
-    // Método para inicializar contexto com mensagem do sistema
     initializeContext(channelId, systemMessage) {
         this.contexts.set(channelId, {
             messages: [{ role: 'system', content: systemMessage }],
@@ -32,8 +30,7 @@ class AIContextManager {
         context.messages.push(message);
         context.lastAccess = Date.now();
 
-        // Limitar número de mensagens (mantendo sempre a system message)
-        if (context.messages.length > this.maxMessages + 1) { // +1 para preservar system message
+        if (context.messages.length > this.maxMessages + 1) {
             const systemMessage = context.messages.find(msg => msg.role === 'system');
             const userMessages = context.messages.filter(msg => msg.role !== 'system');
             const recentMessages = userMessages.slice(-this.maxMessages);
@@ -41,7 +38,6 @@ class AIContextManager {
             context.messages = systemMessage ? [systemMessage, ...recentMessages] : recentMessages;
         }
 
-        // Limpar contextos antigos se necessário
         if (this.contexts.size > this.maxContexts) {
             this.cleanupOldest();
         }
@@ -62,7 +58,6 @@ class AIContextManager {
             createdAt: Date.now()
         });
 
-        // Limpar se exceder limite
         if (this.contexts.size > this.maxContexts) {
             this.cleanupOldest();
         }
@@ -124,7 +119,6 @@ class AIContextManager {
         };
     }
 
-    // Método para obter histórico de conversa formatado (incluindo system message)
     getConversationHistory(channelId) {
         const context = this.getContext(channelId);
         if (!context) return '';
@@ -132,17 +126,14 @@ class AIContextManager {
         return context.messages.map(msg => `${msg.role}: ${msg.content}`).join("\n");
     }
 
-    // Método para adicionar resposta da IA
     addAIResponse(channelId, response) {
         this.addMessage(channelId, { role: 'assistant', content: response });
     }
 
-    // Método para limpar contexto específico
     clearContext(channelId) {
         this.contexts.delete(channelId);
     }
 
-    // Método para obter todos os contextos ativos
     getActiveContexts() {
         const now = Date.now();
         const active = [];
