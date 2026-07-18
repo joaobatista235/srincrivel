@@ -10,8 +10,6 @@ class CommandHandler {
         this.distube = distube;
         this.channelContexts = channelContext;
         this.rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-        this.loadTime = 0;
-        this.commandStats = new Map();
     }
 
     async loadCommands() {
@@ -45,8 +43,7 @@ class CommandHandler {
                 }
             }
 
-            this.loadTime = Date.now() - startTime;
-            console.log(`🚀 ${this.client.commands.size} comandos carregados em ${this.loadTime}ms`);
+            console.log(`🚀 ${this.client.commands.size} comandos carregados em ${Date.now() - startTime}ms`);
 
         } catch (error) {
             console.error('❌ Erro ao carregar comandos:', error);
@@ -70,7 +67,6 @@ class CommandHandler {
     }
 
     async handleInteraction(interaction) {
-        const startTime = Date.now();
         const commandName = interaction.commandName ?? interaction.customId;
 
         console.log('🔄 Interaction received:', {
@@ -86,14 +82,8 @@ class CommandHandler {
         if (command) {
             try {
                 await command.execute(interaction, this.distube, this.channelContexts);
-
-                const executionTime = Date.now() - startTime;
-                this.recordCommandExecution(commandName, executionTime, true);
-
             } catch (error) {
                 console.error(`❌ Erro ao executar o comando ${commandName}:`, error);
-
-                this.recordCommandExecution(commandName, Date.now() - startTime, false);
 
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
@@ -101,76 +91,9 @@ class CommandHandler {
                     await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
                 }
             }
-        } else if ((interaction.isStringSelectMenu() || interaction.isButton()) && interaction.channel.name.startsWith('Xadrez-')) {
-            const chessCommand = interaction.client.commands.get('chess');
-            if (chessCommand) {
-                try {
-                    await chessCommand.handleInteraction(interaction);
-                } catch (err) {
-                    console.error('❌ Erro ao processar interação do xadrez:', err);
-                    try {
-                        await interaction.channel.send({
-                            content: '❌ Ocorreu um erro ao processar sua seleção.',
-                            ephemeral: true
-                        });
-                    } catch (e) {
-                        console.error('❌ Erro ao enviar mensagem de erro:', e);
-                    }
-                }
-            }
         }
     }
 
-    recordCommandExecution(commandName, executionTime, success) {
-        if (!this.commandStats.has(commandName)) {
-            this.commandStats.set(commandName, {
-                totalExecutions: 0,
-                successfulExecutions: 0,
-                failedExecutions: 0,
-                totalExecutionTime: 0,
-                averageExecutionTime: 0,
-                lastExecution: null
-            });
-        }
-
-        const stats = this.commandStats.get(commandName);
-        stats.totalExecutions++;
-        stats.totalExecutionTime += executionTime;
-        stats.averageExecutionTime = stats.totalExecutionTime / stats.totalExecutions;
-        stats.lastExecution = Date.now();
-
-        if (success) {
-            stats.successfulExecutions++;
-        } else {
-            stats.failedExecutions++;
-        }
-
-        // Log de performance para comandos lentos
-        if (executionTime > 1000) {
-            console.warn(`⚠️ Comando ${commandName} executado em ${executionTime}ms (lento)`);
-        }
-    }
-
-    getCommandStats() {
-        const stats = {};
-        for (const [commandName, commandStats] of this.commandStats) {
-            stats[commandName] = {
-                ...commandStats,
-                successRate: commandStats.totalExecutions > 0
-                    ? (commandStats.successfulExecutions / commandStats.totalExecutions) * 100
-                    : 0
-            };
-        }
-        return stats;
-    }
-
-    getPerformanceStats() {
-        return {
-            loadTime: this.loadTime,
-            totalCommands: this.client.commands.size,
-            commandStats: this.getCommandStats()
-        };
-    }
 }
 
 export default CommandHandler;
