@@ -1,6 +1,26 @@
-node_modules
+node_modules/
 .env
-src/engine/*
-srincrivel.zip
-ideias.txt
-/src/utils/prompt.js
+.env.*
+!.env.example
+temp/
+coverage/
+*.log
+__pycache__/
+*.pyc
+
+# Dados e áudios pessoais: somente locais.
+**/usuarios.json
+src/intros/*
+!src/intros/.gitkeep
+src/assets/avatars/
+
+# Exportações, credenciais e dados gerados.
+*.zip
+cookies*.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite*
+*.db
+src/engine/

@@ -1,132 +1,110 @@
-# Bot de Discord 🤖
+# Sr Incrível
 
-<img src="https://media.stickerswiki.app/mrexcept/80554.512.webp" alt="Bot Logo" width="300"/>
+Bot de Discord para um servidor pessoal: música, áudios de entrada, rolagem de dados.
 
-Um bot de Discord desenvolvido em **Node.js v18** para um servidor pessoal entre amigos. O bot é orientado a objetos e possui funcionalidades avançadas, como reprodução de músicas, integração com inteligência artificial e áudios de introdução personalizados.
+## Requisitos
 
----
+- Node.js **26.x**.
+- Token de um bot do Discord.
+- Permissões no servidor: Ver canais, Enviar mensagens, Inserir links, Conectar e Falar.
+- Conexão à internet para instalar dependências e obter músicas.
 
-## Índice 📚
+FFmpeg e yt-dlp são instalados pelo npm. O encoder Opus usa WebAssembly e dispensa ferramentas de compilação C++. A comunicação de voz usa a versão atual de @discordjs/voice com suporte a DAVE.
 
-- [Visão Geral](#visao-geral-)
-- [Funcionalidades](#funcionalidades-)
-- [Tecnologias Utilizadas](#tecnologias-utilizadas-)
-- [Pré-requisitos](#pre-requisitos-)
-- [Como Executar](#como-executar-)
-- [Estrutura do Projeto](#estrutura-do-projeto-)
-- [Licença](#licenca-)
+## Instalação
 
----
+Na pasta do projeto:
 
-## Visão Geral 🌟
-
-Este bot foi desenvolvido para um servidor de Discord pessoal, com o objetivo de proporcionar uma experiência divertida e interativa para os membros. Ele é capaz de tocar músicas diretamente do YouTube, interagir com os usuários por meio de inteligência artificial e reproduzir áudios de introdução quando membros entram em call.
-
----
-
-## Funcionalidades ✨
-
-- **Reprodução de Músicas**:
-  - Busca e toca músicas diretamente do YouTube.
-  - Suporte para playlists e integração com Spotify, SoundCloud e Deezer.
-
-- **Inteligência Artificial**:
-  - Cria um chat privado com um usuário e mantém uma conversa fluida.
-  - Responde com base em um prompt pré-configurado, incluindo informações sobre o servidor e membros.
-
-- **Áudios de Introdução**:
-  - Reproduz um áudio personalizado sempre que um membro entra em call.
-
-- **Slash Commands**:
-  - Comandos interativos para facilitar a interação com o bot.
-
-- **Código Limpo e Modular**:
-  - Estrutura orientada a objetos e organização em pastas para facilitar a manutenção e expansão.
-
----
-
-## Tecnologias Utilizadas 🛠️
-
-- **Linguagem**: Node.js v18
-- **Bibliotecas Principais**:
-  - `discord.js`: Para interação com a API do Discord.
-  - `distube`: Para reprodução de músicas.
-  - `@google/generative-ai`: Para integração com inteligência artificial.
-  - `ffmpeg-static`: Para processamento de áudio.
-  - `dotenv`: Para gerenciamento de variáveis de ambiente.
-  
-- **Outras Dependências**:
-  - `@discordjs/opus` e `@discordjs/voice`: Para suporte a áudio.
-  - `libsodium-wrappers`: Para criptografia.
-
----
-
-## Pré-requisitos 👋
-
-Antes de executar o projeto, certifique-se de ter instalado:
-
-- [Node.js](https://nodejs.org/) (v18 ou superior)
-- [Git](https://git-scm.com/)
-- [FFmpeg](https://ffmpeg.org/) (para processamento de áudio)
-- Uma conta no [Google Cloud](https://cloud.google.com/) (para a API de IA)
-
----
-
-## Como Executar 🚀
-
-Siga os passos abaixo para rodar o bot localmente:
-
-1. **Clone o repositório**:
-   ```bash
-   git clone https://github.com/seu-usuario/bot-discord.git
-   cd bot-discord
-   ```
-
-2. **Instale as dependências**:
-   ```bash
-   npm install
-   ```
-
-3. **Configure as variáveis de ambiente**:
-   - Crie um arquivo `.env` na raiz do projeto.
-   - Adicione as seguintes variáveis:
-     ```env
-     DISCORD_TOKEN=seu_token_do_discord
-     GOOGLE_API_KEY=sua_chave_da_api_google
-     YOUTUBE_API_KEY=sua_chave_da_api_youtube
-     ```
-
-4. **Execute o bot**:
-   ```bash
-   node .
-   ```
-
----
-
-## Estrutura do Projeto 📂
-
-```
-bot-discord/
-├── src/
-│   ├── commands/        # Implementação dos Slash Commands
-│   ├── config/          # Configurações do bot
-│   ├── controllers/     # Lógica de controle
-│   ├── entities/        # Entidades do sistema
-│   ├── intros/          # Áudios de introdução
-│   └── index.js         # Ponto de entrada do bot
-├── .env                 # Variáveis de ambiente
-├── .gitignore           # Arquivos ignorados pelo Git
-├── package.json         # Dependências do projeto
-└── README.md            # Documentação do projeto
+```powershell
+npm ci
+Copy-Item .env.example .env
 ```
 
----
+Preencha o arquivo .env:
 
-## Licença 📚
+```dotenv
+TOKEN=token_do_bot
+GUILD_ID=id_do_servidor
+```
 
-Este projeto está licenciado sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Não são necessárias chaves de serviços de IA.
 
----
+```powershell
+npm start
+```
 
-Feito com ❤️ por [João Batista](https://github.com/joaobatista235).
+O Node carrega o .env nativamente. A inicialização valida a configuração e registra os comandos no servidor indicado por GUILD_ID. O registro substitui a lista anterior de comandos desse bot no servidor, incluindo a remoção de /chat e /ouvir.
 
+## Comandos
+
+| Comando | Função |
+| --- | --- |
+| /play musica | Busca no YouTube pelo nome ou reproduz uma URL suportada por yt-dlp. |
+| /pause | Pausa ou retoma a música. |
+| /resume | Retoma uma música pausada. |
+| /skip | Pula para a próxima música. |
+| /previous | Volta à música anterior. |
+| /stop | Para a fila e desconecta o bot. |
+| /sair | Desconecta o bot, inclusive durante uma intro. |
+| /autoplay | Busca próximos vídeos pelo título e artista da música atual no YouTube. |
+| /roll dados | Rola dados no formato 2d6. |
+
+Os controles de música exigem que o usuário esteja no mesmo canal de voz do bot. Os botões do painel atual usam os mesmos serviços dos slash commands; controles antigos são desativados.
+
+As respostas dos comandos são privadas, exceto /roll. O painel da música aparece no canal de texto. O autoplay consulta até dez vídeos por título e artista, excluindo o vídeo atual; fontes externas ao YouTube não fornecem autoplay.
+
+Links de Spotify e Deezer não são convertidos em músicas do YouTube. O projeto não mantém plugins instalados sem uso. A disponibilidade de cada URL depende do suporte do yt-dlp e das regras do provedor.
+
+## Áudios de entrada
+
+O cadastro src/utils/usuarios.json e os arquivos de src/intros são privados, ignorados pelo Git e devem existir somente na máquina onde o bot roda. O cadastro é opcional: sem ele, o bot inicia normalmente, com intros desativadas.
+
+Para configurar intros, use src/utils/usuarios.example.json como modelo e associe cada ID de usuário a um arquivo de src/intros:
+
+```json
+{
+  "123456789012345678": { "audio": "entrada.mp3" }
+}
+```
+
+Intros não interrompem uma fila de música, mesmo pausada. Cada servidor tem sua própria sessão; conclusão, desconexão e falhas liberam o player e a conexão.
+
+## Verificações
+
+```powershell
+npm test
+npm run check
+npm run check:audio
+npm run check:extractor
+npm run check:privacy
+```
+
+- npm test executa testes locais com o runner do Node, sem login no Discord.
+- npm run check valida a sintaxe de todos os arquivos ativos e dos testes.
+- npm run check:audio verifica Opus, FFmpeg, yt-dlp e mostra as dependências de voz.
+- npm run check:extractor consulta metadados e uma URL de áudio pública no YouTube. Não baixa mídia nem inicia o bot. Também aceita uma URL como argumento: npm run check:extractor -- URL.
+
+Os executáveis auxiliares são baixados na instalação. Para reinstalá-los e atualizar o yt-dlp instalado, execute npm rebuild @distube/yt-dlp ffmpeg-static. O package.json aprova apenas os scripts dessas duas dependências para versões do npm que exigem essa configuração.
+
+## Organização
+
+- index.js: inicialização e encerramento.
+- src/config.js: leitura e validação da configuração.
+- src/entities/DiscordBot.js: composição do cliente e dos serviços.
+- src/controllers/: registro de comandos, eventos de música e sessões de intro.
+- src/services/: ações de música e extração de metadados/stream.
+- src/commands/: definições dos nove comandos ativos.
+- tests/: testes de regressão.
+- experimental/voice/: implementação anterior de /ouvir e serviço Python, preservados e desativados.
+
+O chat e toda a integração de IA foram removidos. A implementação de /ouvir será retomada posteriormente; suas dependências não fazem parte da instalação ativa.
+
+Consulte [MIGRATION.md](MIGRATION.md) para versões, decisões e validações da migração.
+
+## Proteção do versionamento
+
+Execute npm run setup:hooks uma vez em cada clone. O hook de pre-commit verifica arquivos privados rastreados e padrões conhecidos de credenciais no conteúdo staged. Não exibe valores detectados. npm run check:privacy executa a mesma verificação manualmente.
+
+.gitignore impede novas inclusões de áudios pessoais, cadastro de usuários, .env, avatares, ZIPs, cookies, chaves e caches. Ignorar um arquivo não o remove de commits anteriores; a limpeza histórica é descrita em SECURITY_AUDIT.md.
+
+Consulte também [DEPENDENCIES.md](DEPENDENCIES.md) para entender o fluxo de áudio e cada biblioteca.

@@ -1,120 +1,53 @@
-import { EmbedBuilder } from "discord.js";
-import buttons from "../components/buttons.js";
+import { EmbedBuilder } from 'discord.js';
+import { musicControls } from '../components/buttons.js';
+import { musicErrorMessage } from '../utils/errors.js';
 
-class DisTubeHandler {
-    constructor(client, distube) {
-        this.client = client;
-        this.distube = distube;
-    }
+export default class DistubeHandler {
+  constructor(client, distube, music) {
+    this.client = client;
+    this.distube = distube;
+    this.music = music;
+  }
 
-    init() {
-        this.distube
-            .on('playSong', (queue, song) => this.onPlaySong(queue, song))
-            .on('addSong', (queue, song) => this.onAddSong(queue, song))
-            .on('error', (e, queue, song) => this.handleError(e, queue, song))
-            .on('disconnect', (queue) => this.handleDisconnect(queue))
-            .on('finish', (queue) => this.handleFinish(queue))
-            .on('initQueue', (queue) => this.handleInitQueue(queue));
-    }
+  init() {
+    const safely = fn => (...args) => {
+      Promise.resolve().then(() => fn(...args)).catch(error => console.error('Erro no evento de música:', error));
+    };
+    this.distube.on('playSong', safely((queue, song) => this.onPlaySong(queue, song)));
+    this.distube.on('addSong', safely((queue, song) => this.onAddSong(queue, song)));
+    this.distube.on('error', safely((error, queue) => this.onError(error, queue)));
+    this.distube.on('finish', safely(queue => this.onFinish(queue)));
+    this.distube.on('disconnect', safely(queue => this.music.clearPanel(queue.id)));
+    this.distube.on('deleteQueue', safely(queue => this.music.clearPanel(queue.id)));
+  }
 
-    async handleError(e, queue) {
-        console.error('❌ Erro no DisTube:', e);
+  async onPlaySong(queue, song) {
+    await this.music.clearPanel(queue.id);
+    if (!queue.textChannel) return;
+    const embed = new EmbedBuilder()
+      .setColor('Purple')
+      .setTitle((song.name || 'Música').slice(0, 256))
+      .addFields({ name: 'Duração', value: song.formattedDuration || 'Ao vivo' });
+    if (song.thumbnail) embed.setThumbnail(song.thumbnail);
+    const message = await queue.textChannel.send({ embeds: [embed], components: musicControls(queue) });
+    this.music.panels.set(queue.id, message);
+  }
 
-        try {
-            if (queue?.textChannel) {
-                const errorMessage = this.getErrorMessage(e);
-                await queue.textChannel.send(errorMessage);
-            }
-        } catch (sendError) {
-            console.error('❌ Erro ao enviar mensagem de erro:', sendError);
-        }
-    }
+  async onAddSong(queue, song) {
+    if (!queue.textChannel) return;
+    await queue.textChannel.send({
+      embeds: [new EmbedBuilder().setColor('Purple').setTitle('Adicionada à fila')
+        .setDescription((song.name || 'Música').slice(0, 4096))],
+    });
+  }
 
-    getErrorMessage(error) {
-        const errorMessages = {
-            'NoVoice': "❌ Já estou conectado em outro canal!",
-            'InvalidURL': "❌ Link inválido ou não suportado!",
-            'AgeRestricted': "❌ Conteúdo restrito por idade!",
-            'PrivateVideo': "❌ Vídeo privado não pode ser reproduzido!",
-            'SignIn': "❌ Conteúdo requer login!",
-            'VideoUnavailable': "❌ Vídeo não disponível!",
-            'LiveVideo': "❌ Vídeos ao vivo não são suportados!",
-            'VOICE_CONNECT_FAILED': "❌ Erro ao conectar ao canal de voz. Tente novamente.",
-            'UNKNOWN': `❌ Erro desconhecido: ${error.message}`
-        };
+  async onError(error, queue) {
+    console.error('Erro do DisTube:', error);
+    if (queue?.textChannel) await queue.textChannel.send({ content: musicErrorMessage(error) });
+  }
 
-        return errorMessages[error.code] || errorMessages['UNKNOWN'];
-    }
-
-    async handleDisconnect(queue) {
-        console.log(`🔌 Bot desconectado do canal de voz em guild ${queue?.guild?.id}`);
-    }
-
-    async handleFinish(queue) {
-        console.log(`✅ Fila finalizada em guild ${queue?.guild?.id}`);
-    }
-
-    async handleInitQueue(queue) {
-        console.log(`🎵 Nova fila inicializada em guild ${queue?.guild?.id}`);
-    }
-
-    createEmbed({ color = "Random", author, title, thumbnail, fields, description }) {
-        const embed = new EmbedBuilder().setColor(color);
-        if (author) embed.setAuthor(author);
-        if (title) embed.setTitle(title);
-        if (thumbnail) embed.setThumbnail(thumbnail);
-        if (fields) embed.addFields(fields);
-        if (description) embed.setDescription(description);
-        return embed;
-    }
-
-    async onPlaySong(queue, song) {
-        try {
-            const embed = this.createEmbed({
-                author: { name: `🟣 ${this.client.user.username}` },
-                title: `Tocando ${song.name}`,
-                thumbnail: song.thumbnail,
-                fields: [
-                    { name: 'Música', value: song.name, inline: true },
-                    { name: 'Tempo', value: song.formattedDuration, inline: true },
-                ],
-                description: `🎶`,
-            });
-
-            await queue.textChannel.send({
-                embeds: [embed],
-                components: [
-                    { type: 1, components: [buttons.previous, buttons.pause, buttons.stop, buttons.next] },
-                    { type: 1, components: [buttons.autoplay] },
-                ],
-            });
-        } catch (error) {
-            console.error('❌ Erro ao enviar embed de música:', error);
-        }
-    }
-
-    async onAddSong(queue, song) {
-        try {
-            const embed = this.createEmbed({
-                title: `Adicionada à fila`,
-                description: song.name,
-            });
-
-            await queue.textChannel.send({ embeds: [embed] });
-        } catch (error) {
-            console.error('❌ Erro ao enviar embed de música adicionada:', error);
-        }
-    }
-
-    onError(queue, err) {
-        console.error('❌ Erro no DisTube:', err);
-
-        try {
-            queue.textChannel?.send(`❌ Erro no player: ${err.message}`);
-        } catch (sendError) {
-            console.error('❌ Erro ao enviar mensagem de erro:', sendError);
-        }
-    }
+  async onFinish(queue) {
+    await this.music.clearPanel(queue.id);
+    if (!this.distube.getQueue(queue.id)) this.distube.voices.leave(queue.id);
+  }
 }
-
-export default DisTubeHandler;

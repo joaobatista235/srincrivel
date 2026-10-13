@@ -1,102 +1,80 @@
-import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } from '@discordjs/voice';
-import path from 'path';
+import {
+  AudioPlayerStatus, VoiceConnectionStatus, createAudioPlayer, createAudioResource,
+  entersState, joinVoiceChannel, getVoiceConnection,
+} from '@discordjs/voice';
+import { resolve, sep } from 'node:path';
 
-class PlayAudioUseCase {
-    constructor(client, usuarios, __dirname) {
-        this.client = client;
-        this.usuarios = usuarios;
-        this.__dirname = __dirname;
-        this.currentUser = null;
-        this.isPlayingMusic = false;
+const defaultAudio = {
+  AudioPlayerStatus, VoiceConnectionStatus, createAudioPlayer, createAudioResource,
+  entersState, joinVoiceChannel, getVoiceConnection,
+};
+
+export default class PlayAudioHandler {
+  constructor({ client, users, isMusicActive, audio = defaultAudio,
+    introsDir = resolve(import.meta.dirname, '..', 'intros') }) {
+    this.client = client;
+    this.users = users;
+    this.isMusicActive = isMusicActive;
+    this.audio = audio;
+    this.introsDir = introsDir;
+    this.sessions = new Map();
+  }
+
+  isActive(guildId) { return this.sessions.has(guildId); }
+  channelId(guildId) { return this.sessions.get(guildId)?.channelId; }
+
+  async execute(oldState, newState) {
+    if (!newState.channelId || oldState.channelId === newState.channelId
+      || newState.id === this.client.user?.id || newState.member?.user?.bot) return;
+    const user = this.users[newState.id];
+    const guildId = newState.guild.id;
+    if (!user?.audio || this.isActive(guildId) || this.isMusicActive(guildId)) return;
+    const audioPath = resolve(this.introsDir, user.audio);
+    if (!audioPath.startsWith(this.introsDir + sep)) {
+      throw new Error('O arquivo de intro deve estar dentro de src/intros.');
     }
-
-    async execute(oldState, newState) {
-        if (!oldState.channelId && newState.channelId && newState.id !== 'REMOVED_DISCORD_ID') {
-            const userId = newState.id;
-            const userAudio = this.usuarios[userId];
-
-            if (!userAudio) {
-                console.log(`👤 Usuário ${userId} não possui áudio configurado.`);
-                return;
-            }
-
-            const guild = newState.guild;
-            const queue = this.client.distube?.getQueue(guild.id);
-            if (queue && queue.playing) {
-                console.log(`🎵 DisTube está tocando música, pulando intro de áudio para ${userId}`);
-                return;
-            }
-
-            await this.playAudio(newState, userAudio);
-        }
+    // A conexão de música e a conexão da intro nunca disputam a mesma guild.
+    if (this.audio.getVoiceConnection(guildId)) return;
+    const session = { player: null, connection: null, channelId: newState.channelId };
+    this.sessions.set(guildId, session);
+    try {
+      session.player = this.audio.createAudioPlayer();
+      session.connection = this.audio.joinVoiceChannel({
+        channelId: newState.channelId,
+        guildId,
+        adapterCreator: newState.guild.voiceAdapterCreator,
+        selfDeaf: true,
+      });
+      session.player.once(this.audio.AudioPlayerStatus.Idle, () => this.stop(guildId, session));
+      session.player.once('error', error => {
+        console.error('Erro ao reproduzir intro:', error);
+        this.stop(guildId, session);
+      });
+      session.connection.on('error', error => {
+        console.error('Erro na conexão da intro:', error);
+        this.stop(guildId, session);
+      });
+      session.connection.on(this.audio.VoiceConnectionStatus.Disconnected, () => this.stop(guildId, session));
+      session.connection.subscribe(session.player);
+      await this.audio.entersState(session.connection, this.audio.VoiceConnectionStatus.Ready, 20_000);
+      if (this.sessions.get(guildId) !== session) return;
+      session.player.play(this.audio.createAudioResource(audioPath));
+    } catch (error) {
+      this.stop(guildId, session);
+      throw error;
     }
+  }
 
-    async playAudio(newState, userAudio) {
-        const audioPath = path.join(this.__dirname, '..', 'intros', userAudio.audio);
-        const voiceChannel = newState.channel;
-
-        if (this.currentUser && this.currentUser !== newState.id) {
-            console.log(`⏳ Áudio já está sendo tocado para o usuário ${this.currentUser}, não será tocado para ${newState.id}`);
-            return;
-        }
-
-        if (!this.currentUser) {
-            try {
-                const audioResource = createAudioResource(audioPath);
-
-                const connection = joinVoiceChannel({
-                    channelId: voiceChannel.id,
-                    guildId: voiceChannel.guild.id,
-                    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-                });
-
-                const player = createAudioPlayer();
-
-                connection.subscribe(player);
-                player.play(audioResource);
-
-                player.on(AudioPlayerStatus.Playing, () => {
-                    console.log(`🎵 Tocando áudio para o usuário ${newState.id}!`);
-                    this.isPlayingMusic = true;
-                });
-
-                player.on(AudioPlayerStatus.Idle, () => {
-                    console.log(`✅ Áudio para o usuário ${newState.id} finalizado. Desconectando...`);
-                    this.isPlayingMusic = false;
-                    this.currentUser = null;
-                    setTimeout(() => {
-                        if (!this.isPlayingMusic) {
-                            connection.destroy();
-                        }
-                    }, 1000);
-                });
-
-                player.on('error', (error) => {
-                    console.error(`❌ Erro no player de áudio para ${newState.id}:`, error);
-                    this.isPlayingMusic = false;
-                    this.currentUser = null;
-                });
-
-                this.currentUser = newState.id;
-
-            } catch (error) {
-                console.error(`❌ Erro ao tentar reproduzir o áudio para o usuário ${newState.id}:`, error);
-                this.isPlayingMusic = false;
-                this.currentUser = null;
-            }
-        }
+  stop(guildId, expected = this.sessions.get(guildId)) {
+    if (!expected || this.sessions.get(guildId) !== expected) return;
+    this.sessions.delete(guildId);
+    expected.player?.stop(true);
+    if (expected.connection && expected.connection.state.status !== this.audio.VoiceConnectionStatus.Destroyed) {
+      expected.connection.destroy();
     }
+  }
 
-    // Método para verificar se está tocando
-    get isPlaying() {
-        return this.isPlayingMusic;
-    }
-
-    // Método para forçar limpeza de cache
-    forceCleanup() {
-        this.isPlayingMusic = false;
-        this.currentUser = null;
-    }
+  destroy() {
+    for (const guildId of this.sessions.keys()) this.stop(guildId);
+  }
 }
-
-export default PlayAudioUseCase;
