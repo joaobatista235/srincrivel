@@ -49,7 +49,7 @@ O Node carrega o .env nativamente. A inicialização valida a configuração e r
 | /autoplay | Busca próximos vídeos pelo título e artista da música atual no YouTube. |
 | /roll dados | Rola dados no formato 2d6. |
 
-Os controles de música exigem que o usuário esteja no mesmo canal de voz do bot. Os botões do painel atual usam os mesmos serviços dos slash commands; controles antigos são desativados.
+Os controles de música exigem que o usuário esteja no mesmo canal de voz do bot. Os botões do painel atual usam as mesmas ações dos slash commands; controles antigos são desativados.
 
 As respostas dos comandos são privadas, exceto /roll. O painel da música aparece no canal de texto. O autoplay consulta até dez vídeos por título e artista, excluindo o vídeo atual; fontes externas ao YouTube não fornecem autoplay.
 
@@ -59,7 +59,7 @@ Links de Spotify e Deezer não são convertidos em músicas do YouTube. O projet
 
 O cadastro src/utils/usuarios.json e os arquivos de src/intros são privados, ignorados pelo Git e devem existir somente na máquina onde o bot roda. O cadastro é opcional: sem ele, o bot inicia normalmente, com intros desativadas.
 
-Para configurar intros, use src/utils/usuarios.example.json como modelo e associe cada ID de usuário a um arquivo de src/intros:
+Para configurar intros, use src/config/usuarios.example.json como modelo e associe cada ID de usuário a um arquivo de src/intros:
 
 ```json
 {
@@ -67,7 +67,7 @@ Para configurar intros, use src/utils/usuarios.example.json como modelo e associ
 }
 ```
 
-Intros não interrompem uma fila de música, mesmo pausada. Cada servidor tem sua própria sessão; conclusão, desconexão e falhas liberam o player e a conexão.
+Intros não interrompem uma fila de música, mesmo pausada, ou uma busca pendente. Durante uma busca, aguarde a conclusão antes de executar novos controles ou /sair. Cada servidor tem sua própria sessão; conclusão, desconexão e falhas liberam o player e a conexão.
 
 ## Verificações
 
@@ -88,14 +88,18 @@ Os executáveis auxiliares são baixados na instalação. Para reinstalá-los e 
 
 ## Organização
 
-- index.js: inicialização e encerramento.
-- src/config.js: leitura e validação da configuração.
-- src/entities/DiscordBot.js: composição do cliente e dos serviços.
-- src/controllers/: registro de comandos, eventos de música e sessões de intro.
-- src/services/: ações de música e extração de metadados/stream.
-- src/commands/: definições dos nove comandos ativos.
-- tests/: testes de regressão.
-- experimental/voice/: implementação anterior de /ouvir e serviço Python, preservados e desativados.
+- index.js: inicia o bot e trata sinais de encerramento.
+- src/bootstrap/createBot.js: constrói dependências concretas e conecta os adaptadores.
+- src/application/: ações de música, política de intros, dados e coordenação das sessões de voz. Recebe IDs e objetos simples; não importa SDKs.
+- src/adapters/discord/: ciclo de vida do cliente, registro explícito dos nove comandos, roteamento das interações e tradução dos eventos de voz.
+- src/adapters/discord/commands/music/: comandos e fábrica de comandos de música.
+- src/adapters/discord/presentation/: painéis, botões e mensagens em português.
+- src/adapters/audio/: implementações dos players, tradução dos eventos do DisTube e execução do yt-dlp.
+- src/config/: leitura de ambiente e configuração de intros, separadamente.
+- tests/: regressão, contratos dos adaptadores e dependências entre camadas.
+- experimental/voice/: implementação anterior de /ouvir, preservada e desativada.
+
+Consulte [ARCHITECTURE.md](ARCHITECTURE.md) para contratos, fluxo e decisões de organização.
 
 O chat e toda a integração de IA foram removidos. A implementação de /ouvir será retomada posteriormente; suas dependências não fazem parte da instalação ativa.
 

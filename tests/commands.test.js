@@ -1,19 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MessageFlags } from 'discord.js';
-import CommandHandler from '../src/controllers/CommandHandler.js';
-import { UserError } from '../src/utils/errors.js';
-import { rollDice } from '../src/commands/roll.js';
-import { readConfig, readIntroUsers } from '../src/config.js';
-import DiscordBot from '../src/entities/DiscordBot.js';
+import CommandRegistry from '../src/adapters/discord/CommandRegistry.js';
+import InteractionRouter from '../src/adapters/discord/InteractionRouter.js';
+import { ApplicationError } from '../src/application/errors/ApplicationError.js';
+import { rollDice } from '../src/application/dice/rollDice.js';
+import { readEnvironment as readConfig } from '../src/config/readEnvironment.js';
+import { readIntroConfiguration as readIntroUsers } from '../src/config/readIntroConfiguration.js';
+import { createBot } from '../src/bootstrap/createBot.js';
 
 function interaction(name, button = false) {
   const calls = [];
   return {
-    commandName: name, customId: name, calls, deferred: false,
+    commandName: name, customId: name, calls, deferred: false, message: { id: 'panel' },
     isButton: () => button, isChatInputCommand: () => !button, inGuild: () => true,
     options: { getString: () => '2d6' },
-    user: { username: 'Jogador', displayAvatarURL: () => 'https://cdn.discordapp.com/test.png' },
+    user: { id: 'user', username: 'Jogador', displayAvatarURL: () => 'https://cdn.discordapp.com/test.png' },
     async deferReply(options) { calls.push(['deferReply', options]); this.deferred = true; },
     async deferUpdate() { calls.push(['deferUpdate']); this.deferred = true; },
     async editReply(payload) { calls.push(['editReply', payload]); },
@@ -23,29 +25,27 @@ function interaction(name, button = false) {
 }
 
 async function handler(music = {}) {
-  const result = new CommandHandler({}, { music });
-  await result.loadCommands();
+  const result = new InteractionRouter(new CommandRegistry(), { music, panels: { validate() {}, update() {}, clear() {} }, player: { state: () => ({}) } });
   return result;
 }
 
 test('a inicialização offline carrega apenas os 9 comandos ativos e encerra sem conexões', async () => {
-  const bot = new DiscordBot({ token: 'offline', guildId: '123456789012345678' });
+  const bot = createBot({ token: 'offline', guildId: '123456789012345678' });
   try {
-    await bot.commandHandler.loadCommands();
-    assert.equal(bot.commandHandler.commands.size, 9);
-    assert.equal(bot.commandHandler.commands.has('chat'), false);
-    assert.equal(bot.commandHandler.commands.has('ouvir'), false);
-    assert.equal(bot.commandHandler.commands.has('guiham'), false);
-    for (const command of bot.commandHandler.commands.values()) command.data.toJSON();
+    assert.equal(bot.registry.commands.size, 9);
+    assert.equal(bot.registry.commands.has('chat'), false);
+    assert.equal(bot.registry.commands.has('ouvir'), false);
+    assert.equal(bot.registry.commands.has('guiham'), false);
+    for (const command of bot.registry.commands.values()) command.data.toJSON();
   } finally { bot.destroy(); }
 });
 
 for (const name of ['pause', 'resume', 'autoplay', 'previous', 'skip', 'stop']) {
   test(`/${name} reconhece a interação antes de executar a ação e responde como slash command`, async () => {
     const event = interaction(name);
-    const router = await handler({ control: async (_event, action) => {
+    const router = await handler({ [name]: async () => {
       assert.equal(event.calls[0][0], 'deferReply');
-      return { content: action };
+      return { code: 'PAUSED' };
     } });
     await router.handleInteraction(event);
     assert.deepEqual(event.calls.map(call => call[0]), ['deferReply', 'editReply']);
@@ -54,14 +54,14 @@ for (const name of ['pause', 'resume', 'autoplay', 'previous', 'skip', 'stop']) 
 }
 
 test('um botão reconhece sua mensagem sem usar deferReply', async () => {
-  const router = await handler({ control: async () => ({ content: 'Pausada' }) });
+  const router = await handler({ pause: async () => ({ code: 'PAUSED' }) });
   const event = interaction('pause', true);
   await router.handleInteraction(event);
   assert.deepEqual(event.calls.map(call => call[0]), ['deferUpdate']);
 });
 
 test('erro de autorização em botão usa followUp efêmero e preserva a mensagem da música', async () => {
-  const router = await handler({ control: async () => { throw new UserError('Mesmo canal'); } });
+  const router = await handler({ stop: async () => { throw new ApplicationError('SAME_VOICE_REQUIRED'); } });
   const event = interaction('stop', true);
   await router.handleInteraction(event);
   assert.deepEqual(event.calls.map(call => call[0]), ['deferUpdate', 'followUp']);
@@ -92,7 +92,7 @@ test('a rolagem permanece pública e cabe nos limites do embed', async () => {
 
 test('dados rejeitam limites inválidos e números que estourariam o encoder', () => {
   for (const value of ['0d6', '101d6', '1d0', '1d1000001', '1dInfinity', '2D6', '2d6 lixo']) {
-    assert.throws(() => rollDice(value), UserError);
+    assert.throws(() => rollDice(value), ApplicationError);
   }
   assert.deepEqual(rollDice('3d1').results, [1, 1, 1]);
   const result = rollDice('100d6');
@@ -110,7 +110,7 @@ test('o bot pode iniciar sem cadastro pessoal de intros', () => {
 });
 
 test('o exemplo anônimo de configuração das intros é válido', () => {
-  const users = readIntroUsers(new URL('../src/utils/usuarios.example.json', import.meta.url));
+  const users = readIntroUsers(new URL('../src/config/usuarios.example.json', import.meta.url));
   assert.equal(Object.keys(users).length, 1);
 });
 

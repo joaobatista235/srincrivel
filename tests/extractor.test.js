@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import YtDlpExtractor from '../src/services/YtDlpExtractor.js';
+import YtDlpExtractor from '../src/adapters/audio/YtDlpExtractor.js';
 
 test('busca por nome retorna uma única música em vez de tocar toda a busca', async () => {
   const plugin = new YtDlpExtractor();

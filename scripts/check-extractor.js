@@ -1,4 +1,4 @@
-import YtDlpExtractor from '../src/services/YtDlpExtractor.js';
+import YtDlpExtractor from '../src/adapters/audio/YtDlpExtractor.js';
 
 const plugin = new YtDlpExtractor();
 try {

@@ -1,8 +1,8 @@
-import DiscordBot from './src/entities/DiscordBot.js';
-import { readConfig } from './src/config.js';
+import { createBot } from './src/bootstrap/createBot.js';
+import { readEnvironment } from './src/config/readEnvironment.js';
 
 try {
-  const bot = new DiscordBot(readConfig());
+  const bot = createBot(readEnvironment());
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => {
       bot.destroy();

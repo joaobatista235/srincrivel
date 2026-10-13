@@ -2,7 +2,7 @@ import { generateDependencyReport } from '@discordjs/voice';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import ffmpeg from 'ffmpeg-static';
-import { ytDlpPath } from '../src/services/yt-dlp.js';
+import { ytDlpPath } from '../src/adapters/audio/ytDlpProcess.js';
 
 console.log(generateDependencyReport());
 const require = createRequire(import.meta.url);
