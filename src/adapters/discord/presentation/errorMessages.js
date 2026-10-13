@@ -1,4 +1,5 @@
 import { ApplicationError } from '../../../application/errors/ApplicationError.js';
+
 const messages = {
   VOICE_REQUIRED: 'Entre em um canal de voz para usar este comando.',
   SAME_VOICE_REQUIRED: 'Entre no mesmo canal de voz do bot para controlar a música.',
@@ -20,13 +21,29 @@ const messages = {
   VOICE_MISSING_PERMS: 'O bot precisa das permissões Conectar e Falar no canal.',
   YTDLP_ERROR: 'Não foi possível obter o áudio. Verifique o link e tente novamente.',
 };
+
 export function errorMessage(error) {
-  return error instanceof ApplicationError ? messages[error.code] ?? 'Não foi possível concluir a operação. Tente novamente.'
+  return error instanceof ApplicationError
+    ? (messages[error.code] ?? 'Não foi possível concluir a operação. Tente novamente.')
     : 'Não foi possível concluir a operação. Tente novamente.';
 }
+
 export function musicResult(result) {
-  const responses = { ADDED: 'Música adicionada à fila.', PAUSED: 'Música pausada.',
-    RESUMED: 'Música retomada.', AUTOPLAY_ON: 'Autoplay ativado.', AUTOPLAY_OFF: 'Autoplay desativado.',
-    SKIPPED: 'Música pulada.', STOPPED: 'Música parada e bot desconectado.', LEFT: 'Bot desconectado do canal de voz.' };
-  return { content: result.code === 'PREVIOUS' ? 'Tocando a música anterior: ' + result.name + '.' : responses[result.code] };
+  const responses = {
+    ADDED: 'Música adicionada à fila.',
+    PAUSED: 'Música pausada.',
+    RESUMED: 'Música retomada.',
+    AUTOPLAY_ON: 'Autoplay ativado.',
+    AUTOPLAY_OFF: 'Autoplay desativado.',
+    SKIPPED: 'Música pulada.',
+    STOPPED: 'Música parada e bot desconectado.',
+    LEFT: 'Bot desconectado do canal de voz.',
+  };
+
+  return {
+    content:
+      result.code === 'PREVIOUS'
+        ? 'Tocando a música anterior: ' + result.name + '.'
+        : responses[result.code],
+  };
 }

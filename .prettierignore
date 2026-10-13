@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+experimental/
+src/intros/
+src/utils/usuarios.json
+.env*
+package-lock.json

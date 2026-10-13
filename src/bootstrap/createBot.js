@@ -16,29 +16,68 @@ import VoiceSessionCoordinator from '../application/audio/VoiceSessionCoordinato
 import { readIntroConfiguration } from '../config/readIntroConfiguration.js';
 
 export function createBot(config) {
-  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
-  const distube = new DisTube(client, {
-    plugins: [new YtDlpExtractor()], ffmpeg: { path: ffmpegPath }, emitNewSongOnly: true,
-    savePreviousSongs: true, emitAddSongWhenCreatingQueue: false,
-    emitAddListWhenCreatingQueue: false, joinNewVoiceChannel: false,
+  const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
   });
+
+  const distube = new DisTube(client, {
+    plugins: [new YtDlpExtractor()],
+    ffmpeg: { path: ffmpegPath },
+    emitNewSongOnly: true,
+    savePreviousSongs: true,
+    emitAddSongWhenCreatingQueue: false,
+    emitAddListWhenCreatingQueue: false,
+    joinNewVoiceChannel: false,
+  });
+
   const player = new DisTubePlayer({ client, distube });
+
   const coordinator = new VoiceSessionCoordinator(guildId => player.state(guildId));
+
   const introPlayer = new IntroAudioPlayer({ client });
-  const intros = new IntroActions({ users: readIntroConfiguration(), player: introPlayer, coordinator });
-  const music = new MusicActions({ player, coordinator, stopIntro: guildId => intros.stop(guildId) });
+
+  const intros = new IntroActions({
+    users: readIntroConfiguration(),
+    player: introPlayer,
+    coordinator,
+  });
+
+  const music = new MusicActions({
+    player,
+    coordinator,
+    stopIntro: guildId => intros.stop(guildId),
+  });
+
   const panels = new MusicPanel(client);
+
   const registry = new CommandRegistry();
+
   const router = new InteractionRouter(registry, { music, panels, player });
+
   const events = new DisTubeEvents(distube, {
-    playing: event => panels.show(event), added: event => panels.added(event), error: event => panels.error(event),
+    playing: event => panels.show(event),
+    added: event => panels.added(event),
+    error: event => panels.error(event),
     cleared: event => panels.clear(event.guildId),
     finished: async ({ guildId }) => {
       await panels.clear(guildId);
+
       if (!player.state(guildId)?.hasQueue) await player.leave(guildId);
     },
   });
+
   events.init();
-  return new DiscordBot({ client, config, registry, router, voiceListener: new VoiceStateListener(intros),
-    shutdown: () => { events.destroy(); introPlayer.destroy(); player.destroy(); } });
+
+  return new DiscordBot({
+    client,
+    config,
+    registry,
+    router,
+    voiceListener: new VoiceStateListener(intros),
+    shutdown: () => {
+      events.destroy();
+      introPlayer.destroy();
+      player.destroy();
+    },
+  });
 }

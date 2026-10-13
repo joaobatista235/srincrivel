@@ -1,8 +1,9 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 export function musicControls(queue) {
-  const button = (id, label) => new ButtonBuilder()
-    .setCustomId(id).setLabel(label).setStyle(ButtonStyle.Secondary);
+  const button = (id, label) =>
+    new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(ButtonStyle.Secondary);
+
   return [
     new ActionRowBuilder().addComponents(
       button('previous', '⏮ Anterior'),
