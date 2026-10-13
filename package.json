@@ -14,7 +14,8 @@
     "check:audio": "node scripts/check-audio.js",
     "check:extractor": "node scripts/check-extractor.js",
     "check:privacy": "node scripts/check-private-files.js",
-    "setup:hooks": "git config core.hooksPath .githooks"
+    "setup:hooks": "git config core.hooksPath .githooks",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**/*.js\""
   },
   "license": "ISC",
   "description": "Bot de Discord para música e áudios de entrada.",

@@ -15,7 +15,7 @@ import IntroActions from '../application/intros/IntroActions.js';
 import VoiceSessionCoordinator from '../application/audio/VoiceSessionCoordinator.js';
 import { readIntroConfiguration } from '../config/readIntroConfiguration.js';
 
-export function createBot(config) {
+export function createBot(config, { loadIntroConfiguration = readIntroConfiguration } = {}) {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
   });
@@ -34,18 +34,16 @@ export function createBot(config) {
 
   const coordinator = new VoiceSessionCoordinator(guildId => player.state(guildId));
 
-  const introPlayer = new IntroAudioPlayer({ client });
+  const introPlayer = (config.introsEnabled ?? true) ? new IntroAudioPlayer({ client }) : null;
 
-  const intros = new IntroActions({
-    users: readIntroConfiguration(),
-    player: introPlayer,
-    coordinator,
-  });
+  const intros = introPlayer
+    ? new IntroActions({ users: loadIntroConfiguration(), player: introPlayer, coordinator })
+    : null;
 
   const music = new MusicActions({
     player,
     coordinator,
-    stopIntro: guildId => intros.stop(guildId),
+    stopIntro: guildId => intros?.stop(guildId),
   });
 
   const panels = new MusicPanel(client);
@@ -73,10 +71,10 @@ export function createBot(config) {
     config,
     registry,
     router,
-    voiceListener: new VoiceStateListener(intros),
+    voiceListener: intros ? new VoiceStateListener(intros) : null,
     shutdown: () => {
       events.destroy();
-      introPlayer.destroy();
+      introPlayer?.destroy();
       player.destroy();
     },
   });

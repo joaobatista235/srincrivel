@@ -177,3 +177,27 @@ test('encerramento impede uma nova intro depois de destroy', async () => {
   assert.equal(connections.length, 0);
   assert.equal(coordinator.state('guild'), null);
 });
+
+test('falhas de player, conexão e desconexão limpam a reserva e os recursos', async t => {
+  t.mock.method(console, 'error', () => {});
+
+  for (const target of ['player', 'connection', 'disconnect']) {
+    const { listener, state, players, connections, coordinator, intros } = setup();
+    await listener.handle({}, state('guild'));
+    if (target === 'player') players[0].emit('error', new Error('decoder'));
+    else if (target === 'connection') connections[0].emit('error', new Error('voice'));
+    else connections[0].emit('disconnected');
+    assert.equal(coordinator.state('guild'), null);
+    assert.equal(intros.isActive('guild'), false);
+    assert.equal(connections[0].state.status, 'destroyed');
+  }
+});
+
+test('bots e usuários saindo do canal não iniciam intros', async () => {
+  const { listener, state, connections } = setup();
+  const bot = state('guild');
+  bot.member.user.bot = true;
+  await listener.handle({}, bot);
+  await listener.handle({ channelId: 'voice' }, { ...state('guild'), channelId: null });
+  assert.equal(connections.length, 0);
+});

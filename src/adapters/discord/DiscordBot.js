@@ -23,10 +23,12 @@ export default class DiscordBot {
       Events.InteractionCreate,
       safely(interaction => this.router.handleInteraction(interaction)),
     );
-    this.#on(
-      Events.VoiceStateUpdate,
-      safely((oldState, newState) => this.voiceListener.handle(oldState, newState)),
-    );
+    if (this.voiceListener) {
+      this.#on(
+        Events.VoiceStateUpdate,
+        safely((oldState, newState) => this.voiceListener.handle(oldState, newState)),
+      );
+    }
     this.#on(Events.Error, error => console.error('Erro do Discord:', error));
     this.client.once(
       Events.ClientReady,

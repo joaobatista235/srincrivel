@@ -28,9 +28,7 @@ export default class CommandRegistry {
     return this.commands.get(name);
   }
 
-  async register(client, guildId) {
-    const rest = new REST({ version: '10' }).setToken(client.token);
-
+  async register(client, guildId, rest = new REST({ version: '10' }).setToken(client.token)) {
     await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), {
       body: [...this.commands.values()].map(command => command.data.toJSON()),
     });

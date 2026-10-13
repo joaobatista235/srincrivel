@@ -247,3 +247,119 @@ test('adaptador resolve os IDs e entrega objetos nativos somente ao DisTube', as
   });
   assert.deepEqual(captured, [voice, 'Song', { member, textChannel: text }]);
 });
+
+test('play bem-sucedido libera a reserva de busca sem liberar a fila ativa para intros', async () => {
+  const { music, input, actions, coordinator } = setup();
+  assert.deepEqual(await music.play(input), { code: 'ADDED' });
+  assert.deepEqual(actions, ['play']);
+  assert.equal(coordinator.state('guild').hasQueue, true);
+  assert.equal(coordinator.reserveIntro('guild', 'voice'), null);
+});
+
+test('pause alterna retomada, skip executa próxima e sair encerra a fila existente', async () => {
+  const { music, input, state, actions } = setup();
+  state.paused = true;
+  assert.deepEqual(await music.pause(input), { code: 'RESUMED' });
+  assert.deepEqual(await music.skip(input), { code: 'SKIPPED' });
+  await music.leave(input);
+  assert.deepEqual(actions, ['resume', 'skip', 'stop', 'stopIntro', 'leave:guild']);
+});
+
+test('controles rejeitam ausência de fila sem chamar operações nativas', async () => {
+  const { music, input, player, actions } = setup();
+  player.state = () => null;
+  await assert.rejects(music.skip(input), { code: 'NO_QUEUE' });
+  assert.deepEqual(actions, []);
+});
+
+test('reserva em um servidor não bloqueia intro em outro servidor', () => {
+  const coordinator = new VoiceSessionCoordinator(() => null);
+  coordinator.reserveMusic({ guildId: 'one', voiceChannelId: 'voice' });
+  assert.ok(coordinator.reserveIntro('two', 'voice'));
+  assert.equal(coordinator.reserveIntro('one', 'voice'), null);
+});
+
+test('falha ao editar painel não desfaz ação e invalida controles indisponíveis', async t => {
+  t.mock.method(console, 'error', () => {});
+  const panel = new MusicPanel({
+    channels: {
+      cache: new Map([
+        [
+          'text',
+          {
+            send: async () => ({
+              id: 'panel',
+              edit: async () => {
+                throw new Error('apagada');
+              },
+            }),
+          },
+        ],
+      ]),
+    },
+  });
+  await panel.show({ guildId: 'guild', textChannelId: 'text', song: {}, state: {} });
+  await panel.update('guild', { paused: true, autoplay: false });
+  assert.throws(() => panel.validate('guild', 'panel'), { code: 'STALE_PANEL' });
+});
+
+test('ações integradas ao adaptador usam estados nativos e limpam fila e conexão ao parar', async () => {
+  let channelId = 'voice';
+  let queue = {
+    paused: false,
+    autoplay: false,
+    async pause() {
+      this.paused = true;
+    },
+    async resume() {
+      this.paused = false;
+    },
+    toggleAutoplay() {
+      return (this.autoplay = !this.autoplay);
+    },
+    async skip() {
+      this.current = 'next';
+    },
+    async previous() {
+      return { name: 'Anterior' };
+    },
+    async stop() {
+      queue = null;
+    },
+  };
+  const distube = {
+    getQueue: () => queue,
+    voices: {
+      get: () => (channelId ? { channel: { id: channelId } } : undefined),
+      leave: () => {
+        channelId = null;
+      },
+    },
+  };
+  const player = new DisTubePlayer({ distube });
+  const coordinator = new VoiceSessionCoordinator(id => player.state(id));
+  const music = new MusicActions({ player, coordinator, stopIntro() {} });
+  const input = { guildId: 'guild', voiceChannelId: 'voice' };
+  await music.pause(input);
+  assert.equal(player.state('guild').paused, true);
+  await music.resume(input);
+  assert.equal(player.state('guild').paused, false);
+  assert.deepEqual(await music.autoplay(input), { code: 'AUTOPLAY_ON' });
+  assert.deepEqual(await music.autoplay(input), { code: 'AUTOPLAY_OFF' });
+  await music.skip(input);
+  assert.equal(queue.current, 'next');
+  assert.deepEqual(await music.previous(input), { code: 'PREVIOUS', name: 'Anterior' });
+  await music.stop(input);
+  assert.equal(player.state('guild'), null);
+  assert.ok(coordinator.reserveIntro('guild', 'voice'));
+});
+
+test('conexão sem fila impede intro e fila desaparecida gera erro sem acesso a métodos nativos', async () => {
+  const player = new DisTubePlayer({
+    distube: { getQueue: () => null, voices: { get: () => ({ channel: { id: 'voice' } }) } },
+  });
+  const coordinator = new VoiceSessionCoordinator(id => player.state(id));
+  assert.equal(player.state('guild').hasQueue, false);
+  assert.equal(coordinator.reserveIntro('guild', 'voice'), null);
+  await assert.rejects(player.skip('guild'), { code: 'NO_QUEUE' });
+});

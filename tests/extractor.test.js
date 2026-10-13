@@ -53,3 +53,67 @@ test('autoplay não cria URLs do YouTube para outras fontes', async () => {
 
   assert.deepEqual(await plugin.getRelatedSongs({ url: 'https://example.com/music.mp3' }), []);
 });
+
+test('URLs válidas são aceitas e entradas locais ou esquemas diferentes são rejeitados', () => {
+  const plugin = new YtDlpExtractor();
+  for (const url of ['https://youtu.be/example', 'http://example.com/audio'])
+    assert.equal(plugin.validate(url), true);
+  for (const url of ['texto', 'file:///local.mp3', 'ftp://example.com/audio'])
+    assert.equal(plugin.validate(url), false);
+});
+
+test('resolução de playlist ignora entradas indisponíveis e preserva os metadados', async () => {
+  const plugin = new YtDlpExtractor({
+    extract: async () => ({
+      id: 'list',
+      title: 'Lista',
+      entries: [
+        null,
+        {},
+        { id: 'first', title: 'Primeira', webpage_url: 'https://youtu.be/first', duration: 30 },
+      ],
+    }),
+  });
+  const playlist = await plugin.resolve('https://youtube.com/playlist?list=list');
+  assert.equal(playlist.name, 'Lista');
+  assert.deepEqual(
+    playlist.songs.map(song => song.id),
+    ['first'],
+  );
+});
+
+test('playlist vazia e stream indisponível produzem erros específicos', async () => {
+  const empty = new YtDlpExtractor({ extract: async () => ({ entries: [null, {}] }) });
+  await assert.rejects(empty.resolve('https://example.com/list'), { code: 'NO_RESULT' });
+  const missing = new YtDlpExtractor({ extract: async () => ({}) });
+  await assert.rejects(missing.getStreamURL({ url: 'https://youtu.be/example' }), {
+    code: 'CANNOT_GET_STREAM',
+  });
+});
+
+test('música ao vivo mantém propriedades e stream usa formato de áudio', async () => {
+  const calls = [];
+  const plugin = new YtDlpExtractor({
+    extract: async (input, flags) => {
+      calls.push({ input, flags });
+      return flags.noPlaylist
+        ? { url: 'https://example.com/stream' }
+        : {
+            id: 'live',
+            fulltitle: 'Ao vivo',
+            original_url: 'https://youtu.be/live',
+            is_live: true,
+            thumbnails: [{ url: 'https://example.com/thumbnail' }],
+            channel: 'Canal',
+            age_limit: 18,
+          };
+    },
+  });
+  const song = await plugin.resolve('https://youtu.be/live');
+  assert.equal(song.name, 'Ao vivo');
+  assert.equal(song.isLive, true);
+  assert.equal(song.duration, 0);
+  assert.equal(song.ageRestricted, true);
+  assert.equal(await plugin.getStreamURL(song), 'https://example.com/stream');
+  assert.deepEqual(calls[1].flags, { noPlaylist: true, format: 'bestaudio/best' });
+});

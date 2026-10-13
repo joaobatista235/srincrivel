@@ -14,5 +14,13 @@ export function readEnvironment(env = process.env) {
     throw new Error('Configure GUILD_ID com o ID do servidor Discord.');
   }
 
-  return Object.freeze({ token, guildId });
+  const introsValue = env.INTROS_ENABLED?.trim().toLowerCase() ?? 'true';
+
+  if (!['true', 'false', '1', '0'].includes(introsValue)) {
+    throw new Error('Configure INTROS_ENABLED como true, false, 1 ou 0.');
+  }
+
+  const introsEnabled = introsValue === 'true' || introsValue === '1';
+
+  return Object.freeze({ token, guildId, introsEnabled });
 }
