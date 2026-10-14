@@ -207,7 +207,7 @@ npm run check:privacy
 | `npm run test:coverage` | Cobertura de linhas, condições e funções dos arquivos ativos de `src`, com o runner nativo do Node. |
 | `npm run check` | Sintaxe de código ativo, scripts e testes. |
 | `npm run check:audio` | Encoder Opus, FFmpeg, yt-dlp e dependências da camada de voz. |
-| `npm run check:extractor` | Consulta real de metadados e URL de áudio pública, sem baixar mídia ou iniciar o bot. Aceita uma URL após `--`. |
+| `npm run check:extractor` | Consulta real de metadados e URL de áudio pública, sem baixar mídia ou iniciar o bot. Aceita uma URL ou texto de busca após `--`, como `npm.cmd run check:extractor -- "bad omens"`. |
 | `npm run check:privacy` | Arquivos privados rastreados e padrões comuns de credenciais no conteúdo staged. |
 
 Os testes não fazem login real, registro real de comandos ou transmissão de voz no Discord. Bibliotecas externas e subprocessos têm verificações adicionais; cobertura alta de código local não substitui uma validação de uso em um servidor com as permissões corretas.

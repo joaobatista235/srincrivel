@@ -1,7 +1,7 @@
-import { PlayableExtractorPlugin, Song, Playlist, DisTubeError } from 'distube';
+import { ExtractorPlugin, Song, Playlist, DisTubeError } from 'distube';
 import { extractMetadata } from './ytDlpProcess.js';
 
-export default class YtDlpExtractor extends PlayableExtractorPlugin {
+export default class YtDlpExtractor extends ExtractorPlugin {
   constructor({ extract = extractMetadata } = {}) {
     super();
     this.extract = extract;
