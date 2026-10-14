@@ -68,9 +68,9 @@ Com intros desligadas, o bot não lê o cadastro, não cria o player de intros e
 | `/autoplay` | Alterna a busca de próximas músicas por título e artista no YouTube. |
 | `/roll dados` | Rola dados no formato `2d6`. |
 
-Controles de música exigem que o usuário esteja no mesmo canal de voz do bot. As respostas são privadas, exceto `/roll`. O painel de música é publicado no canal de texto; botões antigos são rejeitados.
+Controles de música exigem que o usuário esteja no mesmo canal de voz do bot. As respostas são privadas, exceto `/roll`. O painel de música é publicado no canal de texto; botões antigos são rejeitados. Durante skip/previous, os controles ficam desabilitados com indicação de carregamento. Novos avanços são recusados por servidor até a publicação do próximo painel. Se a publicação exceder 12 segundos, o painel anterior continua inválido, sem manter uma trava permanente. Falhas ao avançar restauram os controles da música atual.
 
-O autoplay consulta até dez vídeos e exclui o vídeo atual. Fontes externas ao YouTube não fornecem autoplay. Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
+O autoplay prioriza outras faixas do artista inicial, com buscas de até vinte vídeos por consulta. Ele filtra reactions, entrevistas, covers, remixes, transmissões e conteúdos fora da faixa de 90 segundos a 15 minutos; evita repetir IDs e versões da mesma faixa. Um pool de metadados em memória reduz buscas durante os próximos skips. Ao esgotar candidatos, tenta consultas alternativas; sem novas músicas adequadas, pede para adicionar uma com `/play`. A seleção é heurística e não garante relevância perfeita. Fontes externas ao YouTube não fornecem autoplay. Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
 
 `/chat`, a integração de IA e os comandos de mensagens pessoais foram removidos. `/ouvir` permanece desativado; seu código anterior está isolado em `experimental/voice` e não faz parte da instalação ativa.
 
@@ -198,6 +198,7 @@ npm run test:coverage
 npm run check
 npm run check:audio
 npm run check:extractor
+npm run check:autoplay
 npm run check:privacy
 ```
 
@@ -208,6 +209,7 @@ npm run check:privacy
 | `npm run check` | Sintaxe de código ativo, scripts e testes. |
 | `npm run check:audio` | Encoder Opus, FFmpeg, yt-dlp e dependências da camada de voz. |
 | `npm run check:extractor` | Consulta real de metadados e URL de áudio pública, sem baixar mídia ou iniciar o bot. Aceita uma URL ou texto de busca após `--`, como `npm.cmd run check:extractor -- "bad omens"`. |
+| `npm run check:autoplay` | Consulta real de seis sugestões distintas usando a fila offline do DisTube, sem áudio, login ou transmissão. Aceita artista, música ou URL após `--`. |
 | `npm run check:privacy` | Arquivos privados rastreados e padrões comuns de credenciais no conteúdo staged. |
 
 Os testes não fazem login real, registro real de comandos ou transmissão de voz no Discord. Bibliotecas externas e subprocessos têm verificações adicionais; cobertura alta de código local não substitui uma validação de uso em um servidor com as permissões corretas.

@@ -14,18 +14,18 @@ test('busca por nome retorna uma única música em vez de tocar toda a busca', a
   assert.equal((await plugin.searchSong('teste', { member: 'member' })).id, 'first');
 });
 
-test('autoplay busca 10 vídeos pelo título e artista sem repetir o vídeo atual', async () => {
+test('autoplay busca outras músicas do artista sem repetir a faixa atual', async () => {
   const plugin = new YtDlpExtractor({
     extract: async (url, flags, options) => {
-      assert.equal(url, 'ytsearch10:Artista Atual');
+      assert.equal(url, 'ytsearch20:Artista official audio');
       assert.equal(flags.flatPlaylist, true);
-      assert.equal(options.timeout, 30_000);
+      assert.equal(options.timeout, 15_000);
 
       return {
         entries: [
-          { id: 'current', title: 'Atual' },
+          { id: 'current', title: 'Artista - Atual (Official Audio)', duration: 180 },
           null,
-          { id: 'next', title: 'Próxima', duration: 30 },
+          { id: 'next', title: 'Artista - Próxima (Official Audio)', duration: 180 },
         ],
       };
     },

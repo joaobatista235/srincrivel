@@ -4,6 +4,7 @@ import { ApplicationError } from '../errors/ApplicationError.js';
  * Player port: state/play/pause/resume/toggleAutoplay/skip/previous/stop/leave.
  */
 export default class MusicActions {
+  #transitions = new Set();
   constructor({ player, coordinator, stopIntro }) {
     this.player = player;
     this.coordinator = coordinator;
@@ -13,6 +14,7 @@ export default class MusicActions {
   #queue(input) {
     this.coordinator.authorize(input);
     this.coordinator.requireReady(input.guildId);
+    this.#requireStable(input.guildId);
     const state = this.player.state(input.guildId);
 
     if (!state?.hasQueue) throw new ApplicationError('NO_QUEUE');
@@ -20,7 +22,23 @@ export default class MusicActions {
     return state;
   }
 
+  #requireStable(guildId) {
+    if (this.#transitions.has(guildId)) throw new ApplicationError('MUSIC_TRANSITION');
+  }
+
+  async #transition(input, operation) {
+    this.#queue(input);
+    this.#transitions.add(input.guildId);
+    try {
+      return await operation();
+    } finally {
+      this.#transitions.delete(input.guildId);
+    }
+  }
+
   async play(input) {
+    this.coordinator.authorize(input);
+    this.#requireStable(input.guildId);
     const reservation = this.coordinator.reserveMusic(input);
 
     try {
@@ -62,15 +80,13 @@ export default class MusicActions {
   }
 
   async skip(input) {
-    this.#queue(input);
-    await this.player.skip(input.guildId);
+    await this.#transition(input, () => this.player.skip(input.guildId));
 
     return { code: 'SKIPPED' };
   }
 
   async previous(input) {
-    this.#queue(input);
-    const song = await this.player.previous(input.guildId);
+    const song = await this.#transition(input, () => this.player.previous(input.guildId));
 
     return { code: 'PREVIOUS', name: song.name };
   }
@@ -86,6 +102,7 @@ export default class MusicActions {
   async leave(input) {
     this.coordinator.authorize(input);
     this.coordinator.requireReady(input.guildId);
+    this.#requireStable(input.guildId);
 
     if (this.player.state(input.guildId)?.hasQueue) await this.player.stop(input.guildId);
 

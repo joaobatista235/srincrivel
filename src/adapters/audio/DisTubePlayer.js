@@ -4,9 +4,10 @@ import { playerError } from './playerErrors.js';
 export default class DisTubePlayer {
   #destroyed = false;
 
-  constructor({ client, distube }) {
+  constructor({ client, distube, transition = (_guildId, operation) => operation() }) {
     this.client = client;
     this.distube = distube;
+    this.transition = transition;
   }
 
   state(guildId) {
@@ -75,11 +76,15 @@ export default class DisTubePlayer {
   }
 
   skip(guildId) {
-    return this.#call(() => this.#queue(guildId).skip());
+    return this.#call(() => this.transition(guildId, () => this.#queue(guildId).skip()));
   }
 
   previous(guildId) {
-    return this.#call(async () => ({ name: (await this.#queue(guildId).previous()).name }));
+    return this.#call(() =>
+      this.transition(guildId, async () => ({
+        name: (await this.#queue(guildId).previous()).name,
+      })),
+    );
   }
 
   stop(guildId) {

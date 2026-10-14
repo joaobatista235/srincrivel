@@ -1,10 +1,14 @@
 import { ExtractorPlugin, Song, Playlist, DisTubeError } from 'distube';
 import { extractMetadata } from './ytDlpProcess.js';
+import YouTubeRecommendations from './YouTubeRecommendations.js';
 
 export default class YtDlpExtractor extends ExtractorPlugin {
   constructor({ extract = extractMetadata } = {}) {
     super();
     this.extract = extract;
+    this.recommendations = new YouTubeRecommendations({
+      extract: (...args) => this.extract(...args),
+    });
   }
 
   validate(input) {
@@ -80,20 +84,17 @@ export default class YtDlpExtractor extends ExtractorPlugin {
     if (!['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com'].includes(url.hostname))
       return [];
 
-    const query = [song.uploader?.name, song.name].filter(Boolean).join(' ');
-    const info = await this.extract(
-      `ytsearch10:${query}`,
-      { flatPlaylist: true },
-      { timeout: 30_000 },
-    );
+    const guildId = song.member?.guild?.id;
+    const previousSongs = guildId ? (this.distube?.getQueue(guildId)?.previousSongs ?? []) : [];
+    const candidates = await this.recommendations.related(song, previousSongs);
 
-    return (info.entries ?? [])
-      .filter(entry => entry?.id && entry.id !== song.id)
-      .map(entry =>
-        this.songFromInfo({
-          ...entry,
-          webpage_url: `https://www.youtube.com/watch?v=${encodeURIComponent(entry.id)}`,
-        }),
-      );
+    return candidates.map(({ info, context }) => {
+      const next = this.songFromInfo({
+        ...info,
+        webpage_url: 'https://www.youtube.com/watch?v=' + encodeURIComponent(info.id),
+      });
+      this.recommendations.remember(next, context);
+      return next;
+    });
   }
 }

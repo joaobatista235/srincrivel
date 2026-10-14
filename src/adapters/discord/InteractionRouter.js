@@ -42,7 +42,7 @@ export default class InteractionRouter {
 
       if (!isButton) await interaction.editReply(response);
     } catch (error) {
-      if (!(error instanceof ApplicationError) || error.cause)
+      if (!(error instanceof ApplicationError) || (error.cause && error.code !== 'NO_RELATED'))
         console.error(`Erro em /${name}:`, error);
 
       const content = errorMessage(error);

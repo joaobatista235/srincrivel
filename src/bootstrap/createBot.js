@@ -30,7 +30,14 @@ export function createBot(config, { loadIntroConfiguration = readIntroConfigurat
     joinNewVoiceChannel: false,
   });
 
-  const player = new DisTubePlayer({ client, distube });
+  const panels = new MusicPanel(client);
+
+  const player = new DisTubePlayer({
+    client,
+    distube,
+    transition: (guildId, operation) =>
+      panels.transition(guildId, operation, () => player.state(guildId)),
+  });
 
   const coordinator = new VoiceSessionCoordinator(guildId => player.state(guildId));
 
@@ -45,8 +52,6 @@ export function createBot(config, { loadIntroConfiguration = readIntroConfigurat
     coordinator,
     stopIntro: guildId => intros?.stop(guildId),
   });
-
-  const panels = new MusicPanel(client);
 
   const registry = new CommandRegistry();
 
@@ -74,6 +79,7 @@ export function createBot(config, { loadIntroConfiguration = readIntroConfigurat
     voiceListener: intros ? new VoiceStateListener(intros) : null,
     shutdown: () => {
       events.destroy();
+      panels.destroy();
       introPlayer?.destroy();
       player.destroy();
     },
