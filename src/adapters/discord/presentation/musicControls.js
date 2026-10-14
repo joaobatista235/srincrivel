@@ -13,7 +13,7 @@ export function musicControls(queue) {
       button('previous', '⏮ Anterior'),
       button('pause', queue.paused ? '▶ Retomar' : '⏸ Pausar'),
       button('stop', '⏹ Parar'),
-      button('skip', queue.busy ? '⏳ Carregando...' : '⏭ Próxima'),
+      button('skip', '⏭ Próxima'),
     ),
     new ActionRowBuilder().addComponents(
       button('autoplay', queue.autoplay ? '✅ Autoplay' : '❌ Autoplay'),

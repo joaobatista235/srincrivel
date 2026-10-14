@@ -224,4 +224,4 @@ O estilo usa dois espaços, aspas simples, ponto e vírgula e limite preferencia
 
 Não versione `.env`, cadastro de usuários, áudios pessoais, avatares, cookies, exportações, chaves ou caches. O hook instalado com `npm run setup:hooks` executa a verificação de privacidade antes de commits, sem exibir valores detectados.
 
-`.gitignore` protege novas inclusões; ele não remove dados já presentes em commits antigos. Credenciais expostas precisam ser revogadas, mesmo quando o histórico é limpo. A versão de histórico sanitizado preparada durante a revisão permanece separada até sua publicação autorizada; o histórico público ainda não foi substituído.
+`.gitignore` protege novas inclusões; ele não remove dados já presentes em commits antigos. Credenciais expostas precisam ser revogadas, mesmo quando o histórico é limpo. O histórico do projeto foi sanitizado para remover os dados privados identificados. Clones anteriores à limpeza devem ser recriados a partir do histórico atualizado para evitar reintroduzir esses dados.
