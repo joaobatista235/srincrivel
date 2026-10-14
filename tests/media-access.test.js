@@ -67,12 +67,14 @@ test('restrição descoberta ao extrair metadados do link também é classificad
   });
 });
 
-test('autoplay exclui vídeos já identificados como adultos ou privados antes de validar streams', async () => {
+test('autoplay verifica restrições sem reordenar as recomendações do Mix', async () => {
   const streams = [];
   const plugin = new YtDlpExtractor({
     extract: async (input, flags) => {
       if (flags.noPlaylist) {
         streams.push(input);
+        if (input.endsWith('private'))
+          throw Object.assign(new Error('private'), { stderr: 'This video is private' });
         return { url: 'https://example.com/audio' };
       }
       return {
@@ -89,7 +91,7 @@ test('autoplay exclui vídeos já identificados como adultos ou privados antes d
     songs.map(song => song.id),
     ['public'],
   );
-  assert.equal(streams.length, 1);
+  assert.equal(streams.length, 2);
 });
 
 test('restrição ausente na busca é detectada antes da fila e o autoplay escolhe o próximo candidato', async () => {

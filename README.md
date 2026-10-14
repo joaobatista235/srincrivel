@@ -65,12 +65,14 @@ Com intros desligadas, o bot não lê o cadastro, não cria o player de intros e
 | `/previous` | Volta à música anterior. |
 | `/stop` | Para a fila e desconecta o bot. |
 | `/sair` | Desconecta o bot, inclusive durante uma intro. |
-| `/autoplay` | Alterna a busca de próximas músicas por título e artista no YouTube. |
+| `/autoplay` | Alterna as sugestões do Mix do YouTube. |
 | `/roll dados` | Rola dados no formato `2d6`. |
 
 Controles de música exigem que o usuário esteja no mesmo canal de voz do bot. As respostas são privadas, exceto `/roll`. O painel de música é publicado no canal de texto; botões antigos são rejeitados. Durante skip/previous, os controles ficam desabilitados com indicação de carregamento. Novos avanços são recusados por servidor até a publicação do próximo painel. Se a publicação exceder 12 segundos, o painel anterior continua inválido, sem manter uma trava permanente. Falhas ao avançar restauram os controles da música atual.
 
-O autoplay prioriza outras faixas do artista inicial, com buscas de até vinte vídeos por consulta. Ele filtra reactions, entrevistas, covers, remixes, transmissões e conteúdos fora da faixa de 90 segundos a 15 minutos; evita repetir IDs e versões da mesma faixa. Um pool de metadados em memória reduz buscas durante os próximos skips. Ao esgotar candidatos, tenta consultas alternativas; sem novas músicas adequadas, pede para adicionar uma com `/play`. A seleção é heurística e não garante relevância perfeita. Vídeos com restrição de idade ou acesso privado identificado são descartados. Antes de entrar na fila pelo autoplay, o candidato tem a URL de áudio validada; se estiver bloqueado, o bot tenta outro, com limite de cinco candidatos por avanço. Fontes externas ao YouTube não fornecem autoplay. Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
+O autoplay segue a ordem do Mix público do YouTube para a música tocada, incluindo outros artistas. Não aplica pontuação própria, filtros por título ou limites de duração. Reaproveita até 25 entradas do Mix; ao esgotá-las, consulta o Mix da faixa atual. Vídeos já tocados ou bloqueados são ignorados. A URL de áudio do candidato é validada antes da troca, com até cinco tentativas de vídeos indisponíveis. Sem login, as sugestões não usam o histórico pessoal de uma conta. Fontes externas ao YouTube não fornecem autoplay.
+
+Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
 
 `/chat`, a integração de IA e os comandos de mensagens pessoais foram removidos. `/ouvir` permanece desativado; seu código anterior está isolado em `experimental/voice` e não faz parte da instalação ativa.
 

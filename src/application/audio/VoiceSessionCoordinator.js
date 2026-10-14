@@ -1,7 +1,8 @@
 import { ApplicationError } from '../errors/ApplicationError.js';
 
-/** Coordinates ownership per guild. getMusicState returns a plain player snapshot. */
+/** Reserva a voz durante buscas e intros. Filas em reprodução são consultadas no player. */
 export default class VoiceSessionCoordinator {
+  // Uma reserva por servidor, sem bloquear servidores diferentes.
   #reservations = new Map();
 
   constructor(getMusicState) {
@@ -48,6 +49,7 @@ export default class VoiceSessionCoordinator {
   }
 
   release(guildId, reservation) {
+    // Uma conclusão antiga não pode liberar a reserva de uma sessão mais recente.
     if (this.#reservations.get(guildId) === reservation) this.#reservations.delete(guildId);
   }
 

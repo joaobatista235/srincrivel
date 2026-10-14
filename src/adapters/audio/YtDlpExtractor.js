@@ -1,6 +1,6 @@
 import { ExtractorPlugin, Song, Playlist, DisTubeError } from 'distube';
 import { extractMetadata } from './ytDlpProcess.js';
-import YouTubeRecommendations from './YouTubeRecommendations.js';
+import YouTubeMix from './YouTubeMix.js';
 import { ApplicationError } from '../../application/errors/ApplicationError.js';
 import { mediaAccessError, unavailableMedia } from './mediaAccess.js';
 
@@ -8,7 +8,7 @@ export default class YtDlpExtractor extends ExtractorPlugin {
   constructor({ extract = extractMetadata } = {}) {
     super();
     this.extract = extract;
-    this.recommendations = new YouTubeRecommendations({
+    this.mix = new YouTubeMix({
       extract: (...args) => this.extract(...args),
     });
   }
@@ -101,24 +101,22 @@ export default class YtDlpExtractor extends ExtractorPlugin {
 
     const guildId = song.member?.guild?.id;
     const previousSongs = guildId ? (this.distube?.getQueue(guildId)?.previousSongs ?? []) : [];
-    // Validate only the chosen candidate, before DisTube mutates the playing queue.
-    // Bounded retries prevent a series of blocked videos from holding the controls forever.
     for (let attempt = 0; attempt < 5; attempt++) {
-      const candidates = await this.recommendations.related(song, previousSongs);
+      const candidates = await this.mix.candidates(song, previousSongs);
       const candidate = candidates[0];
       if (!candidate) return [];
-      const { info, context } = candidate;
+      const { info, mix } = candidate;
       const next = this.songFromInfo({
         ...info,
         webpage_url: 'https://www.youtube.com/watch?v=' + encodeURIComponent(info.id),
       });
-      this.recommendations.remember(next, context);
+      this.mix.remember(next, mix);
       try {
         next.stream.url = await this.getStreamURL(next, { timeout: 15_000 });
         return [next];
       } catch (error) {
         if (!unavailableMedia(error)) throw error;
-        this.recommendations.reject(next, context);
+        this.mix.reject(next, mix);
       }
     }
     return [];

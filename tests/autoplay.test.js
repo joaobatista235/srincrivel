@@ -35,68 +35,49 @@ const entry = (id, title = id, fields = {}) => ({
   ...fields,
 });
 
-test('autoplay mantém artista inicial, filtra conteúdo inadequado e deduplica versões da faixa', async () => {
-  const queries = [];
+test('autoplay usa o Mix na ordem do YouTube, incluindo outros artistas e músicas fora dos filtros antigos', async () => {
+  const calls = [];
   const plugin = metadataPlugin({
-    extract: async query => {
-      queries.push(query);
+    extract: async (url, flags, options) => {
+      calls.push({ url, flags, options });
       return {
         entries: [
           entry('seed', 'Specter'),
-          entry('alternate', 'Specter', { channel: 'Fan' }),
-          entry('reaction', 'Reaction to Specter'),
-          entry('interview', 'Interview'),
-          entry('short', 'Short', { duration: 35 }),
-          entry('live', 'Live', { is_live: true }),
-          entry('other', 'Another', {
-            title: 'Other Artist - Another (Official Audio)',
-            channel: 'Other Artist',
+          null,
+          entry('other', 'Next', {
+            title: 'Bring Me The Horizon - Throne',
+            channel: 'Bring Me The Horizon',
+            duration: 60,
           }),
-          entry('one', 'Just Pretend'),
-          entry('duplicate', 'Just Pretend', { channel: 'Fan' }),
-          entry('two', 'Like A Villain'),
+          entry('long', 'Long Track', { duration: 1000 }),
         ],
       };
     },
   });
-  const songs = await plugin.getRelatedSongs(seed());
-  assert.deepEqual(
-    songs.map(song => song.id),
-    ['one'],
-  );
-  assert.deepEqual(queries, ['ytsearch20:Bad Omens official audio']);
-});
-
-test('cinco avanços usam o pool em cache, sem repetir IDs ou a mesma faixa em outro vídeo', async () => {
-  let searches = 0;
-  const plugin = metadataPlugin({
-    extract: async () => {
-      searches++;
-      return { entries: Array.from({ length: 8 }, (_, index) => entry('track' + index)) };
+  const next = (await plugin.getRelatedSongs(seed()))[0];
+  assert.equal(next.id, 'other');
+  assert.equal(next.name, 'Bring Me The Horizon - Throne');
+  assert.deepEqual(calls, [
+    {
+      url: 'https://www.youtube.com/watch?v=seed&list=RDseed',
+      flags: { flatPlaylist: true, playlistEnd: 25 },
+      options: { timeout: 15_000 },
     },
-  });
-  let current = seed();
-  const ids = [];
-  for (let i = 0; i < 5; i++) {
-    const suggestions = await plugin.getRelatedSongs(current);
-    assert.ok(suggestions.length);
-    current = suggestions[0];
-    ids.push(current.id);
-  }
-  assert.equal(new Set(ids).size, 5);
-  assert.equal(searches, 1);
+  ]);
+  assert.equal((await plugin.getRelatedSongs(next))[0].id, 'long');
+  assert.equal(calls.length, 1);
 });
 
-test('fila real do DisTube consegue seis skips com autoplay sem esgotar as mesmas versões', async t => {
+test('fila real do DisTube consegue seis skips usando um único Mix, sem repetir vídeos', async t => {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
   });
   t.after(() => client.destroy());
-  let searches = 0;
+  let mixes = 0;
   const plugin = metadataPlugin({
     extract: async query => {
       if (query.startsWith('ytsearch1:')) return { entries: [entry('seed', 'Specter')] };
-      searches++;
+      mixes++;
       return { entries: Array.from({ length: 8 }, (_, index) => entry('track' + index)) };
     },
   });
@@ -115,59 +96,42 @@ test('fila real do DisTube consegue seis skips com autoplay sem esgotar as mesma
   }
   assert.equal(new Set(ids).size, 6);
   assert.equal(queue.previousSongs.length, 6);
-  assert.equal(searches, 1);
+  assert.equal(mixes, 1);
 });
 
-test('pool esgotado busca outras faixas e considera todo o histórico do servidor', async () => {
+test('Mix esgotado é renovado pela faixa atual, considerando vídeos já tocados no servidor', async () => {
   const calls = [];
   const plugin = metadataPlugin({
-    extract: async query => {
-      calls.push(query);
+    extract: async url => {
+      calls.push(url);
       return {
-        entries: query.endsWith('official audio')
-          ? [entry('played', 'Old Song')]
-          : [entry('alternate', 'Old Song', { channel: 'Fan' }), entry('new', 'New Song')],
+        entries: url.includes('v=seed&')
+          ? [entry('played'), entry('next')]
+          : [entry('seed'), entry('played'), entry('next'), entry('new')],
       };
     },
   });
+  plugin.distube = { getQueue: () => ({ previousSongs: [{ id: 'played', name: 'Outra' }] }) };
   const current = { ...seed(), member: { guild: { id: 'guild' } } };
-  plugin.distube = {
-    getQueue: id => {
-      assert.equal(id, 'guild');
-      return { previousSongs: [{ id: 'played', name: 'Bad Omens - Old Song (Lyrics)' }] };
-    },
-  };
-  const songs = await plugin.getRelatedSongs(current);
-  assert.deepEqual(
-    songs.map(song => song.id),
-    ['new'],
-  );
-  assert.equal(calls.length, 2);
-});
-
-test('uma fonte de sugestões falhando não impede o fallback e o esgotamento tem fim', async () => {
-  let calls = 0;
-  const plugin = metadataPlugin({
-    extract: async () => {
-      calls++;
-      if (calls === 1) throw new Error('temporariamente indisponível');
-      return { entries: calls === 2 ? [entry('next')] : [] };
-    },
-  });
-  const next = (await plugin.getRelatedSongs(seed()))[0];
+  const next = (await plugin.getRelatedSongs(current))[0];
   assert.equal(next.id, 'next');
-  assert.deepEqual(await plugin.getRelatedSongs(next), []);
-  assert.equal(calls, 3);
+  assert.equal((await plugin.getRelatedSongs(next))[0].id, 'new');
+  assert.deepEqual(calls, [
+    'https://www.youtube.com/watch?v=seed&list=RDseed',
+    'https://www.youtube.com/watch?v=next&list=RDnext',
+  ]);
 });
 
-test('erros de todas as buscas não são disfarçados como ausência de recomendações', async () => {
+test('Mix vazio encerra sugestões e erros de extração continuam visíveis', async () => {
+  const empty = metadataPlugin({ extract: async () => ({ entries: [] }) });
+  assert.deepEqual(await empty.getRelatedSongs(seed()), []);
   const cause = new Error('network');
-  const plugin = metadataPlugin({
+  const failing = metadataPlugin({
     extract: async () => {
       throw cause;
     },
   });
-  await assert.rejects(plugin.getRelatedSongs(seed()), error => error === cause);
+  await assert.rejects(failing.getRelatedSongs(seed()), error => error === cause);
 });
 
 function actions(player) {

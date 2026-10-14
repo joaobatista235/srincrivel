@@ -14,11 +14,11 @@ test('busca por nome retorna uma única música em vez de tocar toda a busca', a
   assert.equal((await plugin.searchSong('teste', { member: 'member' })).id, 'first');
 });
 
-test('autoplay busca outras músicas do artista sem repetir a faixa atual', async () => {
+test('autoplay consulta o Mix do vídeo atual', async () => {
   const plugin = new YtDlpExtractor({
     extract: async (url, flags, options) => {
       if (flags.noPlaylist) return { url: 'https://example.com/audio' };
-      assert.equal(url, 'ytsearch20:Artista official audio');
+      assert.equal(url, 'https://www.youtube.com/watch?v=current&list=RDcurrent');
       assert.equal(flags.flatPlaylist, true);
       assert.equal(options.timeout, 15_000);
 
