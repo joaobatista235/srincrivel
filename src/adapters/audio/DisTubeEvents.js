@@ -1,4 +1,5 @@
 import { playerError } from './playerErrors.js';
+import { unavailableMedia } from './mediaAccess.js';
 /** Converts native events into plain notifications; presentation is injected. */
 export default class DisTubeEvents {
   #listeners = [];
@@ -23,11 +24,13 @@ export default class DisTubeEvents {
     this.#on('playSong', (queue, song) => this.callbacks.playing(snapshot(queue, song)));
     this.#on('addSong', (queue, song) => this.callbacks.added(snapshot(queue, song)));
     this.#on('error', (error, queue) => {
-      console.error('Erro do DisTube:', error);
+      const normalized = playerError(error);
+      if (unavailableMedia(normalized)) console.warn('Mídia indisponível:', normalized.code);
+      else console.error('Erro do DisTube:', error);
 
       return this.callbacks.error({
         textChannelId: queue?.textChannel?.id,
-        error: playerError(error),
+        error: normalized,
       });
     });
     this.#on('finish', queue => this.callbacks.finished({ guildId: queue.id }));

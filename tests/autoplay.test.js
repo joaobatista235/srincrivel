@@ -11,6 +11,15 @@ import InteractionRouter from '../src/adapters/discord/InteractionRouter.js';
 import CommandRegistry from '../src/adapters/discord/CommandRegistry.js';
 import { ApplicationError } from '../src/application/errors/ApplicationError.js';
 
+function metadataPlugin({ extract }) {
+  return new YtDlpExtractor({
+    extract: (input, flags, options) =>
+      flags?.noPlaylist
+        ? Promise.resolve({ url: 'https://example.com/audio' })
+        : extract(input, flags, options),
+  });
+}
+
 const seed = () => ({
   id: 'seed',
   name: 'Bad Omens - Specter (Official Music Video)',
@@ -28,7 +37,7 @@ const entry = (id, title = id, fields = {}) => ({
 
 test('autoplay mantém artista inicial, filtra conteúdo inadequado e deduplica versões da faixa', async () => {
   const queries = [];
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async query => {
       queries.push(query);
       return {
@@ -53,14 +62,14 @@ test('autoplay mantém artista inicial, filtra conteúdo inadequado e deduplica 
   const songs = await plugin.getRelatedSongs(seed());
   assert.deepEqual(
     songs.map(song => song.id),
-    ['one', 'two'],
+    ['one'],
   );
   assert.deepEqual(queries, ['ytsearch20:Bad Omens official audio']);
 });
 
 test('cinco avanços usam o pool em cache, sem repetir IDs ou a mesma faixa em outro vídeo', async () => {
   let searches = 0;
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async () => {
       searches++;
       return { entries: Array.from({ length: 8 }, (_, index) => entry('track' + index)) };
@@ -84,7 +93,7 @@ test('fila real do DisTube consegue seis skips com autoplay sem esgotar as mesma
   });
   t.after(() => client.destroy());
   let searches = 0;
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async query => {
       if (query.startsWith('ytsearch1:')) return { entries: [entry('seed', 'Specter')] };
       searches++;
@@ -111,7 +120,7 @@ test('fila real do DisTube consegue seis skips com autoplay sem esgotar as mesma
 
 test('pool esgotado busca outras faixas e considera todo o histórico do servidor', async () => {
   const calls = [];
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async query => {
       calls.push(query);
       return {
@@ -138,7 +147,7 @@ test('pool esgotado busca outras faixas e considera todo o histórico do servido
 
 test('uma fonte de sugestões falhando não impede o fallback e o esgotamento tem fim', async () => {
   let calls = 0;
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async () => {
       calls++;
       if (calls === 1) throw new Error('temporariamente indisponível');
@@ -153,7 +162,7 @@ test('uma fonte de sugestões falhando não impede o fallback e o esgotamento te
 
 test('erros de todas as buscas não são disfarçados como ausência de recomendações', async () => {
   const cause = new Error('network');
-  const plugin = new YtDlpExtractor({
+  const plugin = metadataPlugin({
     extract: async () => {
       throw cause;
     },

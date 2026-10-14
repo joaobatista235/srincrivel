@@ -1,4 +1,5 @@
 import { ApplicationError } from '../../application/errors/ApplicationError.js';
+import { mediaAccessError } from './mediaAccess.js';
 
 const codes = new Set([
   'NO_QUEUE',
@@ -15,6 +16,7 @@ const codes = new Set([
 ]);
 
 export function playerError(error) {
+  error = mediaAccessError(error);
   if (error instanceof ApplicationError) return error;
 
   return new ApplicationError(

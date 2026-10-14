@@ -42,7 +42,11 @@ export default class InteractionRouter {
 
       if (!isButton) await interaction.editReply(response);
     } catch (error) {
-      if (!(error instanceof ApplicationError) || (error.cause && error.code !== 'NO_RELATED'))
+      if (
+        !(error instanceof ApplicationError) ||
+        (error.cause &&
+          !['NO_RELATED', 'MEDIA_AGE_RESTRICTED', 'MEDIA_UNAVAILABLE'].includes(error.code))
+      )
         console.error(`Erro em /${name}:`, error);
 
       const content = errorMessage(error);

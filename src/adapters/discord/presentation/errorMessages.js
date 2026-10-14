@@ -10,10 +10,15 @@ const messages = {
   ALREADY_PLAYING: 'A música já está tocando.',
   DICE_FORMAT: 'Use o formato xdy, como 2d6.',
   DICE_LIMITS: 'Use de 1 a 100 dados, com até 1.000.000 de faces.',
+  MEDIA_AGE_RESTRICTED:
+    'O YouTube exige verificação de idade para este vídeo. Escolha outra versão pública da música.',
+  MEDIA_UNAVAILABLE:
+    'Este vídeo está privado, removido ou indisponível para reprodução. Escolha outro link.',
   NO_QUEUE: 'Não há músicas na fila.',
   NO_PREVIOUS: 'Não há música anterior.',
   NO_UP_NEXT: 'Não há próxima música na fila.',
-  NO_RELATED: 'Não há novas sugestões de música disponíveis. Adicione uma música com /play.',
+  NO_RELATED:
+    'Não foi possível encontrar uma nova sugestão reproduzível agora. Adicione uma música com /play.',
   NO_RESULT: 'Nenhuma música encontrada.',
   CANNOT_RESOLVE_SONG: 'Não foi possível encontrar essa música.',
   CANNOT_GET_STREAM: 'Não foi possível obter o áudio dessa música.',

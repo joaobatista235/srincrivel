@@ -1,6 +1,8 @@
 import { ExtractorPlugin, Song, Playlist, DisTubeError } from 'distube';
 import { extractMetadata } from './ytDlpProcess.js';
 import YouTubeRecommendations from './YouTubeRecommendations.js';
+import { ApplicationError } from '../../application/errors/ApplicationError.js';
+import { mediaAccessError, unavailableMedia } from './mediaAccess.js';
 
 export default class YtDlpExtractor extends ExtractorPlugin {
   constructor({ extract = extractMetadata } = {}) {
@@ -42,7 +44,12 @@ export default class YtDlpExtractor extends ExtractorPlugin {
   }
 
   async resolve(input, options) {
-    const info = await this.extract(input, { flatPlaylist: true });
+    let info;
+    try {
+      info = await this.extract(input, { flatPlaylist: true });
+    } catch (error) {
+      throw mediaAccessError(error);
+    }
 
     if (!Array.isArray(info.entries)) return this.songFromInfo(info, options);
 
@@ -64,12 +71,20 @@ export default class YtDlpExtractor extends ExtractorPlugin {
     );
   }
 
-  async getStreamURL(song) {
-    const info = await this.extract(song.url, { noPlaylist: true, format: 'bestaudio/best' });
-
-    if (!info.url) throw new DisTubeError('CANNOT_GET_STREAM', song);
-
-    return info.url;
+  async getStreamURL(song, options = {}) {
+    if (song.ageRestricted) throw new ApplicationError('MEDIA_AGE_RESTRICTED');
+    try {
+      const info = await this.extract(
+        song.url,
+        { noPlaylist: true, format: 'bestaudio/best' },
+        options,
+      );
+      if (Number(info.age_limit) >= 18) throw new ApplicationError('MEDIA_AGE_RESTRICTED');
+      if (!info.url) throw new DisTubeError('CANNOT_GET_STREAM', song);
+      return info.url;
+    } catch (error) {
+      throw mediaAccessError(error);
+    }
   }
 
   async searchSong(query, options) {
@@ -86,15 +101,26 @@ export default class YtDlpExtractor extends ExtractorPlugin {
 
     const guildId = song.member?.guild?.id;
     const previousSongs = guildId ? (this.distube?.getQueue(guildId)?.previousSongs ?? []) : [];
-    const candidates = await this.recommendations.related(song, previousSongs);
-
-    return candidates.map(({ info, context }) => {
+    // Validate only the chosen candidate, before DisTube mutates the playing queue.
+    // Bounded retries prevent a series of blocked videos from holding the controls forever.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidates = await this.recommendations.related(song, previousSongs);
+      const candidate = candidates[0];
+      if (!candidate) return [];
+      const { info, context } = candidate;
       const next = this.songFromInfo({
         ...info,
         webpage_url: 'https://www.youtube.com/watch?v=' + encodeURIComponent(info.id),
       });
       this.recommendations.remember(next, context);
-      return next;
-    });
+      try {
+        next.stream.url = await this.getStreamURL(next, { timeout: 15_000 });
+        return [next];
+      } catch (error) {
+        if (!unavailableMedia(error)) throw error;
+        this.recommendations.reject(next, context);
+      }
+    }
+    return [];
   }
 }

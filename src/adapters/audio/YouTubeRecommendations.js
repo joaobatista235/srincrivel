@@ -116,11 +116,18 @@ export default class YouTubeRecommendations {
     this.#contexts.set(song, context);
   }
 
+  reject(song, context) {
+    // A blocked video does not mark its track as played: another upload may be public.
+    context.ids.add(String(song.id));
+  }
+
   #score(entry, artist) {
     if (
       !entry?.id ||
       entry._type === 'playlist' ||
       entry.is_live ||
+      Number(entry.age_limit) >= 18 ||
+      ['private', 'needs_auth', 'premium_only', 'subscriber_only'].includes(entry.availability) ||
       ['is_live', 'is_upcoming', 'post_live'].includes(entry.live_status)
     )
       return 0;

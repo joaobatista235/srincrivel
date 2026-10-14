@@ -17,6 +17,7 @@ test('busca por nome retorna uma única música em vez de tocar toda a busca', a
 test('autoplay busca outras músicas do artista sem repetir a faixa atual', async () => {
   const plugin = new YtDlpExtractor({
     extract: async (url, flags, options) => {
+      if (flags.noPlaylist) return { url: 'https://example.com/audio' };
       assert.equal(url, 'ytsearch20:Artista official audio');
       assert.equal(flags.flatPlaylist, true);
       assert.equal(options.timeout, 15_000);
@@ -105,7 +106,7 @@ test('música ao vivo mantém propriedades e stream usa formato de áudio', asyn
             is_live: true,
             thumbnails: [{ url: 'https://example.com/thumbnail' }],
             channel: 'Canal',
-            age_limit: 18,
+            age_limit: 0,
           };
     },
   });
@@ -113,7 +114,7 @@ test('música ao vivo mantém propriedades e stream usa formato de áudio', asyn
   assert.equal(song.name, 'Ao vivo');
   assert.equal(song.isLive, true);
   assert.equal(song.duration, 0);
-  assert.equal(song.ageRestricted, true);
+  assert.equal(song.ageRestricted, false);
   assert.equal(await plugin.getStreamURL(song), 'https://example.com/stream');
   assert.deepEqual(calls[1].flags, { noPlaylist: true, format: 'bestaudio/best' });
 });

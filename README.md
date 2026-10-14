@@ -70,7 +70,7 @@ Com intros desligadas, o bot não lê o cadastro, não cria o player de intros e
 
 Controles de música exigem que o usuário esteja no mesmo canal de voz do bot. As respostas são privadas, exceto `/roll`. O painel de música é publicado no canal de texto; botões antigos são rejeitados. Durante skip/previous, os controles ficam desabilitados com indicação de carregamento. Novos avanços são recusados por servidor até a publicação do próximo painel. Se a publicação exceder 12 segundos, o painel anterior continua inválido, sem manter uma trava permanente. Falhas ao avançar restauram os controles da música atual.
 
-O autoplay prioriza outras faixas do artista inicial, com buscas de até vinte vídeos por consulta. Ele filtra reactions, entrevistas, covers, remixes, transmissões e conteúdos fora da faixa de 90 segundos a 15 minutos; evita repetir IDs e versões da mesma faixa. Um pool de metadados em memória reduz buscas durante os próximos skips. Ao esgotar candidatos, tenta consultas alternativas; sem novas músicas adequadas, pede para adicionar uma com `/play`. A seleção é heurística e não garante relevância perfeita. Fontes externas ao YouTube não fornecem autoplay. Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
+O autoplay prioriza outras faixas do artista inicial, com buscas de até vinte vídeos por consulta. Ele filtra reactions, entrevistas, covers, remixes, transmissões e conteúdos fora da faixa de 90 segundos a 15 minutos; evita repetir IDs e versões da mesma faixa. Um pool de metadados em memória reduz buscas durante os próximos skips. Ao esgotar candidatos, tenta consultas alternativas; sem novas músicas adequadas, pede para adicionar uma com `/play`. A seleção é heurística e não garante relevância perfeita. Vídeos com restrição de idade ou acesso privado identificado são descartados. Antes de entrar na fila pelo autoplay, o candidato tem a URL de áudio validada; se estiver bloqueado, o bot tenta outro, com limite de cinco candidatos por avanço. Fontes externas ao YouTube não fornecem autoplay. Links de Spotify e Deezer não são convertidos em músicas do YouTube. A disponibilidade de uma URL depende do suporte do yt-dlp e das regras do provedor.
 
 `/chat`, a integração de IA e os comandos de mensagens pessoais foram removidos. `/ouvir` permanece desativado; seu código anterior está isolado em `experimental/voice` e não faz parte da instalação ativa.
 
@@ -172,6 +172,8 @@ Após o evento `ClientReady`, `registry.register` envia `data.toJSON()` ao Disco
 Os botões usam IDs como `pause`, `skip`, `previous`, `stop` e `autoplay`, que correspondem às chaves do registro. A propriedade `button` limita quais definições aceitam botões, e o painel verifica se a mensagem ainda é atual.
 
 A implementação anterior descobria arquivos automaticamente, mas também identificava comandos por `data.name`. A mudança foi na descoberta: agora os módulos ativos estão declarados explicitamente. Criar um arquivo sozinho não ativa um comando. Depois de adicioná-lo à lista, reinicie o bot para registrar a definição no Discord.
+
+Vídeos enviados manualmente que exigem verificação de idade recebem uma mensagem específica. O bot usa reprodução pública, sem cookies ou autenticação de conta do YouTube.
 
 ## Dependências e áudio
 
